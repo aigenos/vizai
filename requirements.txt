@@ -1,0 +1,14 @@
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+httpx>=0.25.0
+websockets>=12.0
+python-multipart>=0.0.6
+
+# Dash ecosystem (for user apps)
+dash>=2.14.0
+plotly>=5.18.0
+dash-bootstrap-components>=1.5.0
+
+# Common data science libraries
+pandas>=2.1.0
+numpy>=1.26.0

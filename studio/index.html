@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VizAI Studio</title>
+
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.css">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/css/studio.css">
+</head>
+<body>
+    <!-- Top toolbar -->
+    <header id="toolbar">
+        <div class="toolbar-left">
+            <span class="logo">VizAI Studio</span>
+        </div>
+        <div class="toolbar-center">
+            <button id="btn-run" class="btn btn-primary" title="Run code (Ctrl+Enter)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                Run
+            </button>
+            <button id="btn-stop" class="btn btn-danger" disabled title="Stop running app">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                Stop
+            </button>
+        </div>
+        <div class="toolbar-right">
+            <span id="session-status" class="status-badge">No session</span>
+        </div>
+    </header>
+
+    <!-- Main layout: 3-panel -->
+    <main id="studio-layout">
+        <!-- Left panel: Chat -->
+        <section id="chat-panel" class="panel">
+            <div class="panel-header">
+                <span>Chat</span>
+                <button class="btn-icon" id="btn-clear-chat" title="Clear chat">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <div class="chat-message assistant">
+                    <div class="message-content">
+                        Welcome to <strong>VizAI Studio</strong>! I can help you build interactive Dash apps.<br><br>
+                        Try asking for:<br>
+                        &bull; <em>basic</em> app<br>
+                        &bull; <em>graph</em> / chart app<br>
+                        &bull; <em>multi page</em> app<br>
+                        &bull; <em>datatable</em> app<br><br>
+                        Or write your own code in the editor and hit <strong>Run</strong>!
+                    </div>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <textarea id="chat-input" placeholder="Describe the app you want to build..." rows="2"></textarea>
+                <button id="btn-send" class="btn btn-primary btn-sm">Send</button>
+            </div>
+        </section>
+
+        <!-- Resizer -->
+        <div class="resizer" id="resizer-left"></div>
+
+        <!-- Center panel: Editor -->
+        <section id="editor-panel" class="panel">
+            <div class="panel-header">
+                <span>Editor</span>
+                <div class="editor-actions">
+                    <button class="btn-icon" id="btn-format" title="Format code">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="editor-container"></div>
+            <!-- Console -->
+            <div id="console-panel">
+                <div class="panel-header console-header">
+                    <span>Console</span>
+                    <button class="btn-icon" id="btn-clear-console" title="Clear console">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>
+                </div>
+                <div id="console-output"></div>
+            </div>
+        </section>
+
+        <!-- Resizer -->
+        <div class="resizer" id="resizer-right"></div>
+
+        <!-- Right panel: Preview -->
+        <section id="preview-panel" class="panel">
+            <div class="panel-header">
+                <span>Preview</span>
+                <button class="btn-icon" id="btn-refresh" title="Refresh preview">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                </button>
+            </div>
+            <div id="preview-container">
+                <div id="preview-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    <p>Run your code to see the preview</p>
+                </div>
+                <iframe id="preview-iframe" style="display:none"></iframe>
+            </div>
+        </section>
+    </main>
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/comment/comment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldgutter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/indent-fold.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldgutter.min.css">
+
+    <script src="/static/js/studio.js"></script>
+</body>
+</html>
