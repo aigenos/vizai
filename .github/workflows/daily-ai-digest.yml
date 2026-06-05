@@ -1,0 +1,49 @@
+name: Daily AI Digest
+
+on:
+  schedule:
+    # 13:00 UTC daily ≈ 8:00 AM US Eastern (adjust the cron to your timezone).
+    - cron: "0 13 * * *"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Avoid overlapping runs.
+concurrency:
+  group: daily-ai-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build and send digest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_TO: ${{ vars.EMAIL_TO || 'mukeshatnyc1@gmail.com' }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'AI Daily Digest <onboarding@resend.dev>' }}
+          DIGEST_MODEL: ${{ vars.DIGEST_MODEL || 'claude-sonnet-4-6' }}
+          LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '3' }}
+          ENABLE_WEB_SEARCH: ${{ vars.ENABLE_WEB_SEARCH || 'true' }}
+        run: python -m src.main
+
+      - name: Upload rendered digest (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-digest-html
+          path: digest_*.html
+          if-no-files-found: ignore
+          retention-days: 14
