@@ -30,11 +30,13 @@ jobs:
 
       - name: Build and send digest
         env:
+          PROVIDER: ${{ vars.PROVIDER || 'gemini' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_TO: ${{ vars.EMAIL_TO || 'mukeshatnyc1@gmail.com' }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'AI Daily Digest <onboarding@resend.dev>' }}
-          DIGEST_MODEL: ${{ vars.DIGEST_MODEL || 'claude-sonnet-4-6' }}
+          DIGEST_MODEL: ${{ vars.DIGEST_MODEL }}
           LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '3' }}
           ENABLE_WEB_SEARCH: ${{ vars.ENABLE_WEB_SEARCH || 'true' }}
         run: python -m src.main

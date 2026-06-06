@@ -1,9 +1,10 @@
 # vizai — Daily AI Intelligence Agent
 
 An autonomous agent that, **every day**, fetches the latest from frontier AI labs,
-top newsletters, and arXiv, then uses Claude to synthesize a curated briefing and
-emails it to you. Built to help you **stay ahead in AI, ship better AI solutions,
-and find publishable open problems in agentic AI.**
+top newsletters, and arXiv, then uses an LLM (**Gemini or Claude — your choice**)
+to synthesize a curated briefing and emails it to you. Built to help you **stay
+ahead in AI, ship better AI solutions, and find publishable open problems in
+agentic AI.**
 
 Each digest contains five sections:
 
@@ -21,18 +22,30 @@ Each digest contains five sections:
 | Newsletters | The Neuron, The Rundown AI |
 | Research | arXiv (`cs.AI`, `cs.LG`, `cs.CL`, `cs.MA`) — agentic-AI focused queries |
 
-Labs/newsletters are pulled via RSS where available; **Claude's web-search tool
-backfills** anything without a reliable feed (Anthropic, DeepSeek, newsletters that
-move their feed) and verifies/augments the rest, so coverage stays robust even when
-a feed breaks.
+Labs/newsletters are pulled via RSS where available; the LLM's **web grounding**
+(Gemini → Google Search, Claude → web_search tool) backfills anything without a
+reliable feed (Anthropic, DeepSeek, newsletters that move their feed) and
+verifies/augments the rest, so coverage stays robust even when a feed breaks.
+
+## Provider (Gemini or Claude)
+
+Analysis is pluggable via the `PROVIDER` env var — no code change to switch:
+
+| `PROVIDER` | Default model | Web grounding | Key needed |
+|------------|---------------|---------------|------------|
+| `gemini` (default) | `gemini-2.5-flash` | Google Search | `GEMINI_API_KEY` |
+| `claude` | `claude-sonnet-4-6` | web_search tool | `ANTHROPIC_API_KEY` |
+
+Override the model anytime with `DIGEST_MODEL` (e.g. `gemini-2.5-pro`,
+`claude-opus-4-8`). Only the selected provider's key is required.
 
 ## Architecture
 
 ```
-fetchers.py  ──►  analyzer.py (Claude + web_search)  ──►  emailer.py (Resend)
-  RSS + arXiv        curate · learn · ideate · find gaps      styled HTML email
-                                   ▲
-                              sources.py (registry)
+fetchers.py  ──►  analyzer.py  ──►  providers.py  ──►  emailer.py (Resend)
+  RSS + arXiv     build prompt     gemini | claude       styled HTML email
+                       ▲           (+ web grounding)
+                  sources.py (registry)
 ```
 
 Everything is orchestrated by `src/main.py` and scheduled by a GitHub Actions cron
@@ -41,7 +54,8 @@ Everything is orchestrated by `src/main.py` and scheduled by a GitHub Actions cr
 ## Setup (one-time, ~5 minutes)
 
 ### 1. Get the two keys
-- **Anthropic API key** → https://console.anthropic.com/settings/keys
+- **Gemini API key** → https://aistudio.google.com/apikey (default provider; free tier covers a daily run)
+  _(or, if `PROVIDER=claude`, an **Anthropic key** → https://console.anthropic.com/settings/keys)_
 - **Resend API key** → https://resend.com/api-keys (free tier covers a daily email)
 
 > The default sender `onboarding@resend.dev` can only send to the **email of the
@@ -51,14 +65,16 @@ Everything is orchestrated by `src/main.py` and scheduled by a GitHub Actions cr
 ### 2. Add them to GitHub
 In the repo: **Settings → Secrets and variables → Actions**.
 
-**Secrets** (required):
-- `ANTHROPIC_API_KEY`
+**Secrets** (add the one for your provider + Resend):
+- `GEMINI_API_KEY`  *(default provider)*
+- `ANTHROPIC_API_KEY`  *(only if `PROVIDER=claude`)*
 - `RESEND_API_KEY`
 
 **Variables** (optional — defaults shown):
+- `PROVIDER` = `gemini`  *(or `claude`)*
 - `EMAIL_TO` = `mukeshatnyc1@gmail.com`
 - `EMAIL_FROM` = `AI Daily Digest <onboarding@resend.dev>`
-- `DIGEST_MODEL` = `claude-sonnet-4-6`
+- `DIGEST_MODEL` = *(blank → provider default; e.g. `gemini-2.5-pro`)*
 - `LOOKBACK_DAYS` = `3`
 - `ENABLE_WEB_SEARCH` = `true`
 
@@ -71,7 +87,7 @@ In the repo: **Settings → Secrets and variables → Actions**.
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # fill in ANTHROPIC_API_KEY and RESEND_API_KEY
+cp .env.example .env          # fill in GEMINI_API_KEY (or ANTHROPIC_API_KEY) + RESEND_API_KEY
 set -a; source .env; set +a   # export the vars
 python -m src.main            # builds digest, writes digest_YYYYMMDD.html, emails it
 ```
@@ -86,14 +102,16 @@ python -m unittest discover -s tests
 
 All knobs are environment variables; see [`.env.example`](.env.example). Notable:
 
+- `PROVIDER=gemini|claude` — pick the analysis engine.
+- `DIGEST_MODEL` — override the model (e.g. `gemini-2.5-pro`, `claude-opus-4-8`).
 - `ENABLE_WEB_SEARCH=false` — run purely from RSS + arXiv (cheaper, narrower coverage).
-- `DIGEST_MODEL=claude-opus-4-8` — switch to Opus for deeper analysis (higher cost).
 - `LOOKBACK_DAYS` — how many days count as "latest" (3 covers weekends).
 
 ## Cost
 
-Roughly a few cents to a few tens of cents per day on Sonnet 4.6 with web search,
-depending on how much the model searches. Resend's free tier covers the email.
+On the default **Gemini 2.5 Flash**, a daily run typically fits within Google's
+free tier (or costs a few cents). Claude Sonnet 4.6 with web search runs a few
+cents to a few tens of cents per day. Resend's free tier covers the email.
 
 ## Customizing sources
 

@@ -45,7 +45,7 @@ def run() -> int:
 
     # 2. Synthesize
     body = build_digest(cfg, items, now)
-    html = render_html(body, now)
+    html = render_html(body, now, engine=f"{cfg.provider} ({cfg.model})")
 
     if cfg.save_html:
         out_path = f"digest_{now.strftime('%Y%m%d')}.html"

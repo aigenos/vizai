@@ -5,9 +5,12 @@ Run: python -m pytest -q   (or: python -m unittest discover tests)
 
 from __future__ import annotations
 
+import os
 import unittest
 from datetime import datetime, timezone
+from unittest import mock
 
+from src.config import Config
 from src.emailer import _inline_styles, render_html, subject_line
 from src.fetchers import Item, _strip_html, dedupe
 
@@ -54,6 +57,60 @@ class TestEmailer(unittest.TestCase):
         self.assertIn("<!DOCTYPE html>", html)
         self.assertIn("June 05, 2026", html)
         self.assertIn("Hi", html)
+
+
+class TestConfig(unittest.TestCase):
+    def _env(self, **overrides):
+        base = {
+            "PROVIDER": "",
+            "GEMINI_API_KEY": "",
+            "GOOGLE_API_KEY": "",
+            "ANTHROPIC_API_KEY": "",
+            "RESEND_API_KEY": "",
+            "DIGEST_MODEL": "",
+        }
+        base.update(overrides)
+        return base
+
+    def test_gemini_default_provider_and_model(self):
+        env = self._env(GEMINI_API_KEY="g", RESEND_API_KEY="r")
+        with mock.patch.dict(os.environ, env, clear=True):
+            cfg = Config.from_env()
+        self.assertEqual(cfg.provider, "gemini")
+        self.assertEqual(cfg.model, "gemini-2.5-flash")
+
+    def test_claude_provider_default_model(self):
+        env = self._env(PROVIDER="claude", ANTHROPIC_API_KEY="a", RESEND_API_KEY="r")
+        with mock.patch.dict(os.environ, env, clear=True):
+            cfg = Config.from_env()
+        self.assertEqual(cfg.provider, "claude")
+        self.assertEqual(cfg.model, "claude-sonnet-4-6")
+
+    def test_explicit_model_overrides_default(self):
+        env = self._env(
+            GEMINI_API_KEY="g", RESEND_API_KEY="r", DIGEST_MODEL="gemini-2.5-pro"
+        )
+        with mock.patch.dict(os.environ, env, clear=True):
+            cfg = Config.from_env()
+        self.assertEqual(cfg.model, "gemini-2.5-pro")
+
+    def test_missing_provider_key_aborts(self):
+        env = self._env(RESEND_API_KEY="r")  # no GEMINI key
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(SystemExit):
+                Config.from_env()
+
+    def test_invalid_provider_aborts(self):
+        env = self._env(PROVIDER="openai", RESEND_API_KEY="r")
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(SystemExit):
+                Config.from_env()
+
+    def test_google_api_key_accepted_as_gemini_key(self):
+        env = self._env(GOOGLE_API_KEY="g", RESEND_API_KEY="r")
+        with mock.patch.dict(os.environ, env, clear=True):
+            cfg = Config.from_env()
+        self.assertEqual(cfg.gemini_api_key, "g")
 
 
 if __name__ == "__main__":
