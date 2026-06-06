@@ -1,13 +1,21 @@
 """Runtime configuration, resolved from environment variables.
 
-All knobs have sensible defaults so the agent runs with just the two required
-secrets (ANTHROPIC_API_KEY, RESEND_API_KEY) set.
+The analysis provider is pluggable (Gemini or Claude), chosen via PROVIDER.
+Only the API key for the selected provider is required.
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+
+VALID_PROVIDERS = {"gemini", "claude"}
+
+# Default model per provider when DIGEST_MODEL is not set.
+DEFAULT_MODELS = {
+    "gemini": "gemini-2.5-flash",
+    "claude": "claude-sonnet-4-6",
+}
 
 
 def _get_bool(name: str, default: bool) -> bool:
@@ -29,7 +37,9 @@ def _get_int(name: str, default: int) -> int:
 
 @dataclass(frozen=True)
 class Config:
+    provider: str
     anthropic_api_key: str
+    gemini_api_key: str
     resend_api_key: str
     email_to: str
     email_from: str
@@ -41,11 +51,25 @@ class Config:
 
     @classmethod
     def from_env(cls) -> "Config":
+        provider = (os.environ.get("PROVIDER") or "").strip().lower() or "gemini"
+        if provider not in VALID_PROVIDERS:
+            raise SystemExit(
+                f"Invalid PROVIDER={provider!r}. "
+                f"Choose one of: {', '.join(sorted(VALID_PROVIDERS))}."
+            )
+
         anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        gemini_api_key = (
+            os.environ.get("GEMINI_API_KEY", "")
+            or os.environ.get("GOOGLE_API_KEY", "")
+        ).strip()
         resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
 
+        # Only the selected provider's key is required.
         missing = []
-        if not anthropic_api_key:
+        if provider == "gemini" and not gemini_api_key:
+            missing.append("GEMINI_API_KEY")
+        if provider == "claude" and not anthropic_api_key:
             missing.append("ANTHROPIC_API_KEY")
         if not resend_api_key:
             missing.append("RESEND_API_KEY")
@@ -53,17 +77,21 @@ class Config:
             raise SystemExit(
                 "Missing required environment variable(s): "
                 + ", ".join(missing)
-                + "\nSee .env.example for setup details."
+                + f"\n(provider={provider}). See .env.example for setup details."
             )
 
+        model = os.environ.get("DIGEST_MODEL", "").strip() or DEFAULT_MODELS[provider]
+
         return cls(
+            provider=provider,
             anthropic_api_key=anthropic_api_key,
+            gemini_api_key=gemini_api_key,
             resend_api_key=resend_api_key,
             email_to=os.environ.get("EMAIL_TO", "mukeshatnyc1@gmail.com").strip(),
             email_from=os.environ.get(
                 "EMAIL_FROM", "AI Daily Digest <onboarding@resend.dev>"
             ).strip(),
-            model=os.environ.get("DIGEST_MODEL", "claude-sonnet-4-6").strip(),
+            model=model,
             lookback_days=_get_int("LOOKBACK_DAYS", 3),
             enable_web_search=_get_bool("ENABLE_WEB_SEARCH", True),
             arxiv_max_results=_get_int("ARXIV_MAX_RESULTS", 40),

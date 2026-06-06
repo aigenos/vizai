@@ -1,6 +1,7 @@
-"""Synthesis layer: turn raw fetched items into a curated digest via Claude.
+"""Synthesis layer: turn raw fetched items into a curated digest.
 
-Uses Claude (Sonnet by default) with the web_search server tool to (a) curate and
+Builds the (provider-agnostic) prompt, then delegates generation to the configured
+provider (Gemini or Claude) which grounds itself with web search to (a) curate and
 deduplicate the day's signal, (b) extract learnings + next steps, (c) propose
 OSS/product ideas, and (d) surface open problems in agentic AI worth publishing on.
 
@@ -13,15 +14,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-import anthropic
-
+from . import providers
 from .config import Config
 from .fetchers import Item
 from .sources import WEB_SEARCH_TARGETS
 
 log = logging.getLogger("vizai.analyzer")
-
-WEB_SEARCH_TOOL = {"type": "web_search_20260209", "name": "web_search"}
 
 SYSTEM_PROMPT = """\
 You are an elite AI research & industry analyst writing a daily intelligence \
@@ -111,9 +109,7 @@ def _format_items(items: list[Item]) -> str:
 
 
 def build_digest(cfg: Config, items: list[Item], now: datetime) -> str:
-    """Run the model and return the HTML body fragment."""
-    client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
-
+    """Build the prompt, run the configured provider, return the HTML fragment."""
     targets = "\n".join(f"- {t}" for t in WEB_SEARCH_TARGETS)
     user_content = (
         f"Date: {now.strftime('%A, %B %d, %Y')} (UTC).\n"
@@ -125,54 +121,12 @@ def build_digest(cfg: Config, items: list[Item], now: datetime) -> str:
         f"{INSTRUCTIONS}"
     )
 
-    tools = [WEB_SEARCH_TOOL] if cfg.enable_web_search else []
-    messages = [{"role": "user", "content": user_content}]
-
-    # Agentic loop: the web_search server tool runs server-side; on a long search
-    # session the API returns stop_reason="pause_turn" — re-send to resume.
-    final = None
-    for _ in range(6):
-        kwargs = dict(
-            model=cfg.model,
-            max_tokens=16000,
-            system=SYSTEM_PROMPT,
-            thinking={"type": "adaptive"},
-            output_config={"effort": "medium"},
-            messages=messages,
-        )
-        if tools:
-            kwargs["tools"] = tools
-        resp = client.messages.create(**kwargs)
-
-        if resp.stop_reason == "pause_turn":
-            messages = [
-                {"role": "user", "content": user_content},
-                {"role": "assistant", "content": resp.content},
-            ]
-            final = resp
-            continue
-        final = resp
-        break
-
-    if final is None:
-        raise RuntimeError("model returned no response")
-
-    html = "".join(
-        block.text for block in final.content if block.type == "text"
-    ).strip()
-    html = _strip_code_fence(html)
+    log.info("generating digest via %s (%s)", cfg.provider, cfg.model)
+    raw = providers.generate(cfg, SYSTEM_PROMPT, user_content)
+    html = _strip_code_fence(raw)
     if not html:
-        raise RuntimeError(
-            f"model produced empty digest (stop_reason={final.stop_reason})"
-        )
-
-    usage = final.usage
-    log.info(
-        "digest generated: %d chars (in=%s, out=%s tokens)",
-        len(html),
-        getattr(usage, "input_tokens", "?"),
-        getattr(usage, "output_tokens", "?"),
-    )
+        raise RuntimeError("provider produced an empty digest")
+    log.info("digest generated: %d chars", len(html))
     return html
 
 

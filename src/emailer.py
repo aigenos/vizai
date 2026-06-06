@@ -33,7 +33,7 @@ _TEMPLATE = """\
   </div>
   <div style="text-align:center;color:#8a8a9a;font-size:12px;padding:18px 8px;">
     Curated by <strong>vizai</strong> from frontier labs, top newsletters &amp; arXiv ·
-    powered by Claude.<br>Stay ahead. Ship great AI.
+    {engine}<br>Stay ahead. Ship great AI.
   </div>
 </div>
 </body>
@@ -60,11 +60,13 @@ def _inline_styles(body: str) -> str:
     return out
 
 
-def render_html(body_fragment: str, now: datetime) -> str:
+def render_html(body_fragment: str, now: datetime, engine: str = "") -> str:
+    engine_label = f"powered by {engine}." if engine else "powered by AI."
     return _TEMPLATE.format(
         title="Your AI Daily Digest",
         date=now.strftime("%A, %B %d, %Y"),
         body=_inline_styles(body_fragment),
+        engine=engine_label,
     )
 
 
