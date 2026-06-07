@@ -13,10 +13,45 @@ SDKs are imported lazily so you only need the package for the provider you use.
 from __future__ import annotations
 
 import logging
+import time
+from typing import Callable, TypeVar
 
 from .config import Config
 
 log = logging.getLogger("vizai.providers")
+
+T = TypeVar("T")
+
+# Substrings that mark a retryable, transient server/rate condition.
+_TRANSIENT_MARKERS = (
+    "503", "UNAVAILABLE", "overloaded", "529",
+    "429", "RESOURCE_EXHAUSTED", "500", "INTERNAL",
+)
+
+
+def _is_transient(exc: Exception) -> bool:
+    blob = f"{type(exc).__name__} {exc}"
+    return any(m in blob for m in _TRANSIENT_MARKERS)
+
+
+def _with_retries(fn: Callable[[], T], attempts: int = 4, base: float = 5.0) -> T:
+    """Run fn, retrying transient errors with exponential backoff (5s, 10s, 20s…)."""
+    last: Exception | None = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            if i == attempts - 1 or not _is_transient(exc):
+                raise
+            delay = base * (2**i)
+            log.warning(
+                "transient model error (%s); retrying in %.0fs [%d/%d]",
+                exc, delay, i + 1, attempts - 1,
+            )
+            time.sleep(delay)
+    assert last is not None
+    raise last
 
 
 def generate(cfg: Config, system: str, user_prompt: str) -> str:
@@ -25,6 +60,8 @@ def generate(cfg: Config, system: str, user_prompt: str) -> str:
         return _generate_gemini(cfg, system, user_prompt)
     if cfg.provider == "claude":
         return _generate_claude(cfg, system, user_prompt)
+    if cfg.provider == "ollama":
+        return _generate_ollama(cfg, system, user_prompt)
     raise ValueError(f"unknown provider: {cfg.provider}")
 
 
@@ -48,10 +85,12 @@ def _generate_gemini(cfg: Config, system: str, user_prompt: str) -> str:
         temperature=0.4,
     )
 
-    resp = client.models.generate_content(
-        model=cfg.model,
-        contents=user_prompt,
-        config=config,
+    resp = _with_retries(
+        lambda: client.models.generate_content(
+            model=cfg.model,
+            contents=user_prompt,
+            config=config,
+        )
     )
 
     text = (getattr(resp, "text", None) or "").strip()
@@ -74,6 +113,42 @@ def _generate_gemini(cfg: Config, system: str, user_prompt: str) -> str:
         )
     except AttributeError:
         log.info("gemini ok: %d chars", len(text))
+    return text
+
+
+# ── Ollama (local, free — great for testing the whole pipeline) ───────────────
+def _generate_ollama(cfg: Config, system: str, user_prompt: str) -> str:
+    import requests
+
+    url = cfg.ollama_host.rstrip("/") + "/api/chat"
+    payload = {
+        "model": cfg.model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_prompt},
+        ],
+        "stream": False,
+        "options": {"temperature": 0.4},
+    }
+
+    def _call() -> dict:
+        try:
+            r = requests.post(url, json=payload, timeout=600)
+        except requests.ConnectionError as exc:
+            raise RuntimeError(
+                f"Cannot reach Ollama at {cfg.ollama_host}. "
+                f"Start it with `ollama serve` and pull the model "
+                f"(`ollama pull {cfg.model}`). ({exc})"
+            ) from exc
+        if r.status_code >= 300:
+            raise RuntimeError(f"Ollama error {r.status_code}: {r.text[:300]}")
+        return r.json()
+
+    data = _with_retries(_call)
+    text = ((data.get("message") or {}).get("content") or "").strip()
+    if not text:
+        raise RuntimeError("Ollama returned empty content")
+    log.info("ollama ok: %d chars (model=%s)", len(text), cfg.model)
     return text
 
 
@@ -104,7 +179,7 @@ def _generate_claude(cfg: Config, system: str, user_prompt: str) -> str:
         )
         if tools:
             kwargs["tools"] = tools
-        resp = client.messages.create(**kwargs)
+        resp = _with_retries(lambda: client.messages.create(**kwargs))
 
         if resp.stop_reason == "pause_turn":
             messages = [

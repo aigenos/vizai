@@ -92,6 +92,28 @@ set -a; source .env; set +a   # export the vars
 python -m src.main            # builds digest, writes digest_YYYYMMDD.html, emails it
 ```
 
+### Test the whole pipeline for free (no tokens, no email)
+
+Use the local **Ollama** provider + **DRY_RUN** to exercise fetch → synthesize →
+render end-to-end without spending API tokens or sending anything:
+
+```bash
+# one-time: install ollama (https://ollama.com), then
+ollama serve &
+ollama pull llama3.1            # or qwen2.5, llama3.2, etc.
+
+PROVIDER=ollama DRY_RUN=true python -m src.main
+# → writes digest_YYYYMMDD.html locally; skips Resend entirely. Open it in a browser.
+```
+
+When that looks right, switch back to `PROVIDER=gemini` (drop `DRY_RUN`) for the
+real run. You can also dry-run Gemini/Claude (`DRY_RUN=true` alone) to verify the
+model output without sending email.
+
+> **Resilience:** transient `503 / 429 / overloaded` errors (e.g. Gemini "high
+> demand") are retried automatically with exponential backoff (5s → 10s → 20s)
+> before failing, so brief capacity spikes don't kill a run.
+
 ## Tests
 
 ```bash
