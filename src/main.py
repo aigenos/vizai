@@ -9,11 +9,14 @@ from __future__ import annotations
 import logging
 import sys
 from datetime import datetime, timezone
+from dotenv import load_dotenv
 
 from .analyzer import build_digest
 from .config import Config
 from .emailer import render_html, send_email, subject_line
 from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
