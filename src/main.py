@@ -47,7 +47,8 @@ def run() -> int:
     body = build_digest(cfg, items, now)
     html = render_html(body, now, engine=f"{cfg.provider} ({cfg.model})")
 
-    if cfg.save_html:
+    # Always save to disk in DRY_RUN so you can eyeball the result locally.
+    if cfg.save_html or cfg.dry_run:
         out_path = f"digest_{now.strftime('%Y%m%d')}.html"
         try:
             with open(out_path, "w", encoding="utf-8") as fh:
@@ -56,7 +57,10 @@ def run() -> int:
         except OSError as exc:
             log.warning("could not save html: %s", exc)
 
-    # 3. Deliver
+    # 3. Deliver (skipped in DRY_RUN)
+    if cfg.dry_run:
+        log.info("DRY_RUN enabled — skipping email send. Open %s to review.", out_path)
+        return 0
     send_email(cfg, subject_line(now), html)
     log.info("done.")
     return 0

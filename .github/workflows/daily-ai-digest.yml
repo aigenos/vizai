@@ -39,6 +39,7 @@ jobs:
           DIGEST_MODEL: ${{ vars.DIGEST_MODEL }}
           LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '3' }}
           ENABLE_WEB_SEARCH: ${{ vars.ENABLE_WEB_SEARCH || 'true' }}
+          DRY_RUN: ${{ vars.DRY_RUN || 'false' }}
         run: python -m src.main
 
       - name: Upload rendered digest (artifact)
