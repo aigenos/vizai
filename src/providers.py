@@ -46,6 +46,9 @@ def _generate_gemini(cfg: Config, system: str, user_prompt: str) -> str:
         # digest is never truncated mid-section.
         max_output_tokens=24000,
         temperature=0.4,
+        # Cap thinking so it can't consume the full output budget and leave the
+        # response body empty (resp.text would then return "" with STOP).
+        thinking_config=types.ThinkingConfig(thinking_budget=4000),
     )
 
     resp = client.models.generate_content(
@@ -55,6 +58,17 @@ def _generate_gemini(cfg: Config, system: str, user_prompt: str) -> str:
     )
 
     text = (getattr(resp, "text", None) or "").strip()
+    if not text:
+        # `resp.text` is empty when the candidate has only thought parts; pull
+        # text directly from non-thought parts as a fallback.
+        try:
+            parts = resp.candidates[0].content.parts or []
+            text = "".join(
+                p.text for p in parts if getattr(p, "text", None) and not getattr(p, "thought", False)
+            ).strip()
+        except (AttributeError, IndexError, TypeError):
+            pass
+
     if not text:
         # Surface why (e.g. MAX_TOKENS, SAFETY) for debugging in CI logs.
         reason = "unknown"
