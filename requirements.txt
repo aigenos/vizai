@@ -7,3 +7,6 @@ python-dateutil>=2.9.0
 # (Both are light; CI installs both so you can switch via the PROVIDER var.)
 google-genai>=1.0.0      # PROVIDER=gemini (default)
 anthropic>=0.105.0       # PROVIDER=claude
+
+# Optional features (safe to omit — code degrades gracefully):
+gTTS>=2.5.0              # ENABLE_AUDIO=true — free TTS for the audio digest

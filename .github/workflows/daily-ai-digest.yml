@@ -2,14 +2,19 @@ name: Daily AI Digest
 
 on:
   schedule:
-    # 13:00 UTC daily ≈ 8:00 AM US Eastern (adjust the cron to your timezone).
-    - cron: "0 13 * * *"
+    # 11:00 UTC daily = 7:00 AM US Eastern (EDT, UTC-4). In winter (EST, UTC-5)
+    # this becomes 6:00 AM ET — bump to "0 12 * * *" if you want 7 AM year-round.
+    - cron: "0 11 * * *"
   workflow_dispatch: {} # allow manual runs from the Actions tab
 
 # Avoid overlapping runs.
 concurrency:
   group: daily-ai-digest
   cancel-in-progress: false
+
+# Needed so the job can commit the published archive back to the repo.
+permissions:
+  contents: write
 
 jobs:
   digest:
@@ -28,7 +33,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build and send digest
+      # OPTIONAL secret sauce: the Opportunity Map (src/private/opportunity.py) is
+      # gitignored, so it is NOT in the repo. If you set the OPPORTUNITY_B64 secret
+      # (base64 of your private module), CI restores it to disk for this run only —
+      # so your email includes it, while the public archive has it stripped out.
+      # Forks without the secret simply run without the section. To create it:
+      #   base64 -w0 src/private/opportunity.py        (Linux)
+      #   certutil -encode src/private/opportunity.py tmp && type tmp   (Windows)
+      - name: Restore private sections (optional)
+        if: ${{ secrets.OPPORTUNITY_B64 != '' }}
+        run: |
+          mkdir -p src/private
+          echo "${{ secrets.OPPORTUNITY_B64 }}" | base64 -d > src/private/opportunity.py
+          echo "Restored private opportunity section."
+
+      - name: Build, send, archive & notify
         env:
           PROVIDER: ${{ vars.PROVIDER || 'gemini' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -37,15 +56,46 @@ jobs:
           EMAIL_TO: ${{ vars.EMAIL_TO || 'mukeshatnyc1@gmail.com' }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'AI Daily Digest <onboarding@resend.dev>' }}
           DIGEST_MODEL: ${{ vars.DIGEST_MODEL }}
-          LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '3' }}
+          LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '7' }}
           ENABLE_WEB_SEARCH: ${{ vars.ENABLE_WEB_SEARCH || 'true' }}
+          DRY_RUN: ${{ vars.DRY_RUN || 'false' }}
+          # Public archive (GitHub Pages). Private sections are stripped on publish.
+          PUBLISH_ARCHIVE: ${{ vars.PUBLISH_ARCHIVE || 'true' }}
+          SITE_TITLE: ${{ vars.SITE_TITLE || 'dAIly — Daily AI Digest' }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          SUBSCRIBE_URL: ${{ vars.SUBSCRIBE_URL }}
+          # Audio digest (free gTTS).
+          ENABLE_AUDIO: ${{ vars.ENABLE_AUDIO || 'false' }}
+          # Optional multi-channel delivery.
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m src.main
 
-      - name: Upload rendered digest (artifact)
+      # Commit the freshly published archive (docs/) back to the repo so GitHub
+      # Pages serves it. Enable Pages: Settings → Pages → Deploy from branch →
+      # main → /docs. Only runs when there are archive changes to commit.
+      - name: Publish archive to repo
+        if: ${{ vars.PUBLISH_ARCHIVE != 'false' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/ || true
+          if git diff --cached --quiet; then
+            echo "No archive changes to commit."
+          else
+            git commit -m "archive: daily digest $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Upload rendered digest + audio (artifact)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-digest-html
-          path: digest_*.html
+          name: ai-digest
+          path: |
+            digest_*.html
+            out/*.mp3
           if-no-files-found: ignore
           retention-days: 14

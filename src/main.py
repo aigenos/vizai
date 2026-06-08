@@ -11,10 +11,11 @@ import sys
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-from .analyzer import build_digest
+from . import archive, audio, notifiers
+from .analyzer import build_digest, private_section_ids
 from .config import Config
 from .emailer import render_html, send_email, subject_line
-from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv
+from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv, fetch_hf_papers
 
 load_dotenv()
 
@@ -23,7 +24,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-log = logging.getLogger("vizai")
+log = logging.getLogger("aigenos")
 
 
 def run() -> int:
@@ -34,23 +35,28 @@ def run() -> int:
     # 1. Fetch
     feed_items = fetch_all_feeds(cfg.lookback_days, now)
     arxiv_items = fetch_arxiv(cfg.lookback_days, now, cfg.arxiv_max_results)
-    items = dedupe([*feed_items, *arxiv_items])
+    hf_items = fetch_hf_papers(cfg.lookback_days, now)
+    items = dedupe([*feed_items, *arxiv_items, *hf_items])
     log.info(
-        "fetched %d item(s) total (%d feed, %d arXiv) after dedupe",
+        "fetched %d item(s) total (%d feed, %d arXiv, %d HF papers) after dedupe",
         len(items),
         len(feed_items),
         len(arxiv_items),
+        len(hf_items),
     )
 
     if not items and not cfg.enable_web_search:
         log.error("no items fetched and web search disabled — aborting")
         return 1
 
-    # 2. Synthesize
+    # 2. Synthesize. `body` is the section-marked fragment (private sections
+    # included); `html` is the full styled email.
+    engine = f"{cfg.provider} ({cfg.model})"
     body = build_digest(cfg, items, now)
-    html = render_html(body, now, engine=f"{cfg.provider} ({cfg.model})")
+    html = render_html(body, now, engine=engine)
 
-    if cfg.save_html:
+    # Always save to disk in DRY_RUN so you can eyeball the result locally.
+    if cfg.save_html or cfg.dry_run:
         out_path = f"digest_{now.strftime('%Y%m%d')}.html"
         try:
             with open(out_path, "w", encoding="utf-8") as fh:
@@ -59,8 +65,22 @@ def run() -> int:
         except OSError as exc:
             log.warning("could not save html: %s", exc)
 
-    # 3. Deliver
+    # 3. Local artifacts — safe to produce even in DRY_RUN (just files).
+    #    Archive publishes a PUBLIC copy with private sections stripped.
+    if cfg.publish_archive:
+        try:
+            archive.publish(cfg, body, now, engine, private_section_ids())
+        except Exception as exc:  # noqa: BLE001 — never let archiving kill the run
+            log.warning("archive publish failed: %s", exc)
+    if cfg.enable_audio:
+        audio.generate(cfg, body, now)
+
+    # 4. Deliver externally (skipped in DRY_RUN).
+    if cfg.dry_run:
+        log.info("DRY_RUN enabled — skipping email + channel posts. Open %s to review.", out_path)
+        return 0
     send_email(cfg, subject_line(now), html)
+    notifiers.notify_all(cfg, body, now)
     log.info("done.")
     return 0
 

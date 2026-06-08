@@ -10,3 +10,12 @@ venv/
 digest_*.html
 out/
 *.log
+
+# Private, user-specific digest sections (the "secret sauce", e.g. Opportunity
+# Map). Everything under src/private/ is ignored EXCEPT the committed scaffolding
+# (package marker, example, docs) so a public clone gets the extension point but
+# never your private section prompts.
+/src/private/*
+!/src/private/__init__.py
+!/src/private/README.md
+!/src/private/EXAMPLE.py
