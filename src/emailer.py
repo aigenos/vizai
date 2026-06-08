@@ -1,55 +1,176 @@
-"""Email rendering + delivery via the Resend HTTP API."""
+"""Email rendering + delivery via the Resend HTTP API.
+
+Modern, theme-aware HTML built on a few principles:
+
+- ``<meta name="color-scheme">`` + ``<meta name="supported-color-schemes">``
+  signal we render in both light and dark.
+- A ``<style>`` block defines CSS custom properties (light defaults), with a
+  ``@media (prefers-color-scheme: dark)`` block that re-binds the same tokens
+  to dark values. Clients that support ``prefers-color-scheme`` (Apple Mail,
+  iOS Mail, Gmail web, Outlook.com, Yahoo) get full theme switching.
+- Every tag also carries inline light-theme styles as a fallback for clients
+  that strip ``<style>`` (notably Outlook desktop). Those readers get a clean
+  light-mode render — Outlook handles its own dark-mode inversion.
+
+Aesthetic goal: floating cards, soft gradients, refined typography, generous
+whitespace — "Antigravity"-style UX rendered inside an email.
+"""
 
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 
 import requests
 
 from .config import Config
 
-log = logging.getLogger("vizai.emailer")
+log = logging.getLogger("aigenos.emailer")
 
 RESEND_ENDPOINT = "https://api.resend.com/emails"
 
+# ── Theme tokens ──────────────────────────────────────────────────────────────
+# Light defaults are also embedded inline on each element for Outlook desktop.
+# Dark overrides come from the @media (prefers-color-scheme: dark) block below.
+
+_THEME_STYLES = """
+:root {
+  color-scheme: light dark;
+  supported-color-schemes: light dark;
+  --bg: #f3f4f8;
+  --surface: #ffffff;
+  --surface-elev: #ffffff;
+  --text: #14142a;
+  --text-soft: #3a3a55;
+  --muted: #6b6b85;
+  --accent: #6366f1;
+  --accent-2: #a855f7;
+  --accent-soft: rgba(99, 102, 241, 0.10);
+  --border: #e8e6f5;
+  --code-bg: #faf9ff;
+  --shadow: 0 1px 2px rgba(20, 20, 42, 0.04), 0 8px 24px rgba(20, 20, 42, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0a14;
+    --surface: #14141f;
+    --surface-elev: #1a1a26;
+    --text: #ececf5;
+    --text-soft: #c8c8d8;
+    --muted: #8e8ea8;
+    --accent: #8b8cff;
+    --accent-2: #c084fc;
+    --accent-soft: rgba(139, 140, 255, 0.14);
+    --border: #2a2a3d;
+    --code-bg: #1a1a26;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+  body, .aigenos-bg { background: var(--bg) !important; }
+  .aigenos-card { background: var(--surface) !important; box-shadow: var(--shadow) !important; }
+  .aigenos-text { color: var(--text) !important; }
+  .aigenos-muted { color: var(--muted) !important; }
+  h2.aigenos-h2 { color: var(--accent) !important; border-color: var(--border) !important; }
+  h3.aigenos-h3 { color: var(--text) !important; }
+  p.aigenos-p, li.aigenos-li { color: var(--text-soft) !important; }
+  a.aigenos-a { color: var(--accent) !important; }
+  strong.aigenos-strong { color: var(--text) !important; }
+  blockquote.aigenos-bq {
+    background: var(--code-bg) !important;
+    color: var(--text-soft) !important;
+    border-color: var(--accent) !important;
+  }
+  .aigenos-chip {
+    background: var(--accent-soft) !important;
+    color: var(--accent) !important;
+  }
+  .aigenos-footer { color: var(--muted) !important; }
+  .aigenos-hero-sub { color: rgba(255,255,255,0.85) !important; }
+}
+@media (max-width: 600px) {
+  .aigenos-shell { padding: 16px 10px !important; }
+  .aigenos-card { padding: 18px !important; }
+  .aigenos-hero { padding: 22px 22px 18px !important; }
+}
+"""
+
+# ── Wrapper template ──────────────────────────────────────────────────────────
 _TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>{title}</title>
+<style>{theme}</style>
 </head>
-<body style="margin:0;padding:0;background:#f4f5f7;">
-<div style="max-width:680px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a2e;line-height:1.6;">
-  <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:14px;padding:28px 28px 22px;color:#fff;">
-    <div style="font-size:13px;letter-spacing:1.5px;text-transform:uppercase;opacity:.85;">vizai · daily ai intelligence</div>
-    <h1 style="margin:8px 0 4px;font-size:24px;font-weight:700;">🤖 Your AI Daily Digest</h1>
-    <div style="font-size:14px;opacity:.9;">{date}</div>
+<body class="aigenos-bg" style="margin:0;padding:0;background:#f3f4f8;color-scheme:light dark;">
+<div class="aigenos-shell" style="max-width:720px;margin:0 auto;padding:28px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Variable','Segoe UI',Roboto,'SF Pro Display','Helvetica Neue',Arial,sans-serif;font-feature-settings:'cv11','ss03';-webkit-font-smoothing:antialiased;">
+
+  <!-- Hero -->
+  <div class="aigenos-hero" style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#c026d3 100%);border-radius:20px;padding:30px 30px 24px;color:#ffffff;box-shadow:0 8px 32px rgba(79,70,229,0.25);">
+    <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.78;font-weight:600;">by aigenos · daily ai intelligence</div>
+    <h1 style="margin:10px 0 6px;font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.15;">d<span style="color:#fcd34d;">AI</span>ly</h1>
+    <div class="aigenos-hero-sub" style="font-size:14px;opacity:.92;font-weight:500;">{date}</div>
   </div>
-  <div style="background:#ffffff;border-radius:14px;padding:8px 28px 24px;margin-top:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+
+  <!-- Body card -->
+  <div class="aigenos-card" style="background:#ffffff;border-radius:20px;padding:8px 30px 26px;margin-top:18px;box-shadow:0 1px 2px rgba(20,20,42,0.04),0 8px 24px rgba(20,20,42,0.06);">
     {body}
+    {cta}
   </div>
-  <div style="text-align:center;color:#8a8a9a;font-size:12px;padding:18px 8px;">
-    Curated by <strong>vizai</strong> from frontier labs, top newsletters &amp; arXiv ·
-    {engine}<br>Stay ahead. Ship great AI.
+
+  <!-- Footer -->
+  <div class="aigenos-footer" style="text-align:center;color:#6b6b85;font-size:12px;padding:22px 8px 8px;line-height:1.6;">
+    Curated by <strong style="color:#6366f1;font-weight:700;">aigenos</strong> from frontier labs, AI-engineer newsletters, infra vendors, community feeds &amp; arXiv<br>
+    <span style="opacity:.78;">{engine}</span>
   </div>
+
 </div>
 </body>
 </html>"""
 
-# Inline styling for the model-produced tags so the email renders cleanly across
-# clients (no <style> blocks — many mail clients strip them).
+# ── Inline styling for the model-produced tags ────────────────────────────────
+# Inline styles are the light-mode baseline. Class names are the hook for the
+# dark-mode @media block above to retarget colors via CSS.
 _TAG_STYLES = {
-    "<h2>": '<h2 style="font-size:19px;margin:26px 0 8px;padding-bottom:6px;border-bottom:2px solid #ece9fb;color:#4f46e5;">',
-    "<h3>": '<h3 style="font-size:16px;margin:18px 0 4px;color:#1a1a2e;">',
-    "<p>": '<p style="margin:8px 0;font-size:15px;color:#2a2a3a;">',
-    "<ul>": '<ul style="margin:8px 0 8px 0;padding-left:22px;">',
-    "<li>": '<li style="margin:6px 0;font-size:15px;color:#2a2a3a;">',
-    "<a ": '<a style="color:#7c3aed;text-decoration:none;font-weight:600;" ',
-    "<blockquote>": '<blockquote style="margin:10px 0;padding:8px 14px;border-left:3px solid #c7c2f0;background:#faf9ff;color:#3a3a4a;">',
-    "<strong>": '<strong style="color:#1a1a2e;">',
+    "<h2>": (
+        '<h2 class="aigenos-h2" style="font-size:21px;margin:32px 0 10px;padding-bottom:10px;'
+        'border-bottom:1px solid #e8e6f5;color:#6366f1;font-weight:700;letter-spacing:-0.01em;'
+        'line-height:1.3;">'
+    ),
+    "<h3>": (
+        '<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;'
+        'font-weight:650;letter-spacing:-0.005em;line-height:1.35;">'
+    ),
+    "<p>": (
+        '<p class="aigenos-p" style="margin:10px 0;font-size:15px;color:#3a3a55;'
+        'line-height:1.65;">'
+    ),
+    "<ul>": (
+        '<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">'
+    ),
+    "<li>": (
+        '<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;'
+        'line-height:1.6;">'
+    ),
+    "<a ": (
+        '<a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;'
+        'border-bottom:1px solid rgba(99,102,241,0.25);" '
+    ),
+    "<blockquote>": (
+        '<blockquote class="aigenos-bq" style="margin:14px 0;padding:12px 18px;'
+        'border-left:3px solid #6366f1;background:#faf9ff;color:#3a3a55;border-radius:0 10px 10px 0;'
+        'font-size:15px;line-height:1.6;">'
+    ),
+    "<strong>": (
+        '<strong class="aigenos-strong" style="color:#14142a;font-weight:650;">'
+    ),
+    "<em>": (
+        '<em class="aigenos-em" style="font-style:italic;color:inherit;">'
+    ),
 }
 
 
@@ -60,18 +181,65 @@ def _inline_styles(body: str) -> str:
     return out
 
 
-def render_html(body_fragment: str, now: datetime, engine: str = "") -> str:
+# Match the "(90 sec read)" / "(5 min read)" suffix the model puts on each <h2>
+# and turn it into a styled chip so it pops without looking like body text.
+_READTIME_RX = re.compile(
+    r'(<h2[^>]*>)(.*?)\s*\(([^)]*\bread\b[^)]*)\)\s*(</h2>)',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+
+def _enhance_read_time(body: str) -> str:
+    def repl(m: re.Match) -> str:
+        open_tag, label, chip, close_tag = m.group(1), m.group(2), m.group(3), m.group(4)
+        chip_html = (
+            '<span class="aigenos-chip" style="display:inline-block;font-size:11px;'
+            'font-weight:600;letter-spacing:0.4px;text-transform:uppercase;padding:4px 10px;'
+            'margin-left:10px;border-radius:999px;background:rgba(99,102,241,0.10);'
+            'color:#6366f1;vertical-align:middle;line-height:1;">'
+            f'{chip.strip()}</span>'
+        )
+        return f'{open_tag}{label.rstrip()}{chip_html}{close_tag}'
+    return _READTIME_RX.sub(repl, body)
+
+
+def render_html(body_fragment: str, now: datetime, engine: str = "", cta: str = "") -> str:
+    """Render the full email. `cta` is an optional pre-built HTML block (e.g. a
+    subscribe call-to-action) injected after the body — it is NOT run through the
+    tag-styler, so it keeps its own styling intact."""
     engine_label = f"powered by {engine}." if engine else "powered by AI."
+    styled_body = _inline_styles(body_fragment)
+    styled_body = _enhance_read_time(styled_body)
     return _TEMPLATE.format(
-        title="Your AI Daily Digest",
+        title="dAIly — Daily AI Digest",
         date=now.strftime("%A, %B %d, %Y"),
-        body=_inline_styles(body_fragment),
+        body=styled_body,
+        cta=cta,
         engine=engine_label,
+        theme=_THEME_STYLES,
     )
 
 
 def subject_line(now: datetime) -> str:
-    return f"🤖 AI Daily Digest — {now.strftime('%b %d, %Y')}"
+    return f"dAIly — AI Digest, {now.strftime('%b %d, %Y')}"
+
+
+def subscribe_cta(url: str) -> str:
+    """A self-styled subscribe call-to-action (white-on-gradient, reads fine in
+    both light and dark). Returns '' if no url so it's a no-op."""
+    if not url:
+        return ""
+    return (
+        '<div style="margin:28px 0 8px;padding:22px 24px;border-radius:16px;'
+        'background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-align:center;">'
+        '<div style="font-size:18px;font-weight:800;letter-spacing:-0.01em;">Want the full Opportunity Map?</div>'
+        '<div style="font-size:14px;opacity:.92;margin:8px 0 14px;line-height:1.5;">'
+        'Today’s Opportunity of the Day is just 1 of 5–7. Get the complete daily map — '
+        'the gap, why-now, wedge &amp; moat, and a validated first step for every bet.</div>'
+        f'<a href="{url}" style="display:inline-block;background:#ffffff;color:#4f46e5;'
+        'font-weight:700;text-decoration:none;padding:11px 26px;border-radius:999px;font-size:15px;">'
+        'Subscribe →</a></div>'
+    )
 
 
 def send_email(cfg: Config, subject: str, html: str) -> dict:

@@ -19,9 +19,9 @@ from dateutil import parser as date_parser
 
 from .sources import ARXIV_CATEGORIES, ARXIV_QUERIES, RSS_FEEDS, Feed
 
-log = logging.getLogger("vizai.fetchers")
+log = logging.getLogger("aigenos.fetchers")
 
-USER_AGENT = "vizai-ai-digest/1.0 (+https://github.com/aigenos/vizai)"
+USER_AGENT = "aigenos-ai-digest/1.0 (+https://github.com/aigenos/aigenos)"
 ARXIV_API = "http://export.arxiv.org/api/query"
 ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 
@@ -171,6 +171,68 @@ def fetch_arxiv(
 
     log.info("arXiv: %d recent paper(s)", len(items))
     return items
+
+
+HF_PAPERS_API = "https://huggingface.co/api/daily_papers"
+
+
+def fetch_hf_papers(lookback_days: int, now: datetime, max_results: int = 50) -> list[Item]:
+    """Fetch Hugging Face Daily Papers — the curated 'must-read' trending papers.
+
+    Unlike raw arXiv keyword search, this is community-upvoted, so it surfaces the
+    papers people actually consider important. We carry the upvote count into the
+    summary so the model can rank by real attention, and link the HF paper page
+    (which shows discussion + links straight to the arXiv PDF).
+    """
+    cutoff = now - timedelta(days=lookback_days)
+    items: list[Item] = []
+    try:
+        resp = requests.get(
+            HF_PAPERS_API,
+            params={"limit": max_results},
+            headers={"User-Agent": USER_AGENT},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as exc:
+        log.warning("skip HF daily papers (%s): %s", HF_PAPERS_API, exc)
+        return items
+
+    for row in data if isinstance(data, list) else []:
+        paper = row.get("paper") or {}
+        pid = paper.get("id") or ""
+        if not pid:
+            continue
+        published = _parse_date(paper.get("publishedAt") or row.get("publishedAt"))
+        if published is not None and published < cutoff:
+            continue
+        upvotes = paper.get("upvotes") or 0
+        abstract = " ".join((paper.get("summary") or "").split())
+        items.append(
+            Item(
+                source="HF Daily Papers",
+                category="research",
+                title=" ".join((paper.get("title") or "").split()),
+                url=f"https://huggingface.co/papers/{pid}",
+                published=published,
+                summary=f"[{upvotes}▲ upvotes on HF] {abstract}"[:1200],
+                authors=[a.get("name", "") for a in (paper.get("authors") or []) if a.get("name")],
+            )
+        )
+
+    # Surface the most-upvoted first so the per-source cap keeps the best.
+    items.sort(key=lambda it: _hf_upvotes(it), reverse=True)
+    log.info("HF daily papers: %d recent paper(s)", len(items))
+    return items
+
+
+def _hf_upvotes(it: Item) -> int:
+    """Extract the upvote count we stashed at the front of the summary."""
+    import re
+
+    m = re.match(r"\[(\d+)▲", it.summary)
+    return int(m.group(1)) if m else 0
 
 
 def _text(el) -> str:

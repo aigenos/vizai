@@ -9,12 +9,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-VALID_PROVIDERS = {"gemini", "claude"}
+VALID_PROVIDERS = {"gemini", "claude", "ollama"}
 
 # Default model per provider when DIGEST_MODEL is not set.
 DEFAULT_MODELS = {
     "gemini": "gemini-2.5-flash",
     "claude": "claude-sonnet-4-6",
+    "ollama": "llama3.1",
 }
 
 
@@ -41,6 +42,8 @@ class Config:
     anthropic_api_key: str
     gemini_api_key: str
     resend_api_key: str
+    ollama_host: str
+    dry_run: bool
     email_to: str
     email_from: str
     model: str
@@ -48,6 +51,20 @@ class Config:
     enable_web_search: bool
     arxiv_max_results: int
     save_html: bool
+    # Public archive (GitHub Pages). Private sections are stripped before publish.
+    publish_archive: bool
+    archive_dir: str
+    site_title: str
+    site_url: str
+    subscribe_url: str
+    # Multi-channel delivery (all optional; blank = disabled).
+    slack_webhook_url: str
+    discord_webhook_url: str
+    telegram_bot_token: str
+    telegram_chat_id: str
+    # Audio / TTS version of The Pulse.
+    enable_audio: bool
+    audio_dir: str
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -64,14 +81,16 @@ class Config:
             or os.environ.get("GOOGLE_API_KEY", "")
         ).strip()
         resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
+        dry_run = _get_bool("DRY_RUN", False)
 
-        # Only the selected provider's key is required.
+        # Only the selected provider's key is required (ollama needs none).
         missing = []
         if provider == "gemini" and not gemini_api_key:
             missing.append("GEMINI_API_KEY")
         if provider == "claude" and not anthropic_api_key:
             missing.append("ANTHROPIC_API_KEY")
-        if not resend_api_key:
+        # Resend is only needed when we actually send (skipped in DRY_RUN).
+        if not dry_run and not resend_api_key:
             missing.append("RESEND_API_KEY")
         if missing:
             raise SystemExit(
@@ -87,6 +106,8 @@ class Config:
             anthropic_api_key=anthropic_api_key,
             gemini_api_key=gemini_api_key,
             resend_api_key=resend_api_key,
+            ollama_host=os.environ.get("OLLAMA_HOST", "http://localhost:11434").strip(),
+            dry_run=dry_run,
             email_to=os.environ.get("EMAIL_TO", "mukeshatnyc1@gmail.com").strip(),
             email_from=os.environ.get(
                 "EMAIL_FROM", "AI Daily Digest <onboarding@resend.dev>"
@@ -96,4 +117,15 @@ class Config:
             enable_web_search=_get_bool("ENABLE_WEB_SEARCH", True),
             arxiv_max_results=_get_int("ARXIV_MAX_RESULTS", 40),
             save_html=_get_bool("SAVE_HTML", True),
+            publish_archive=_get_bool("PUBLISH_ARCHIVE", False),
+            archive_dir=os.environ.get("ARCHIVE_DIR", "docs").strip() or "docs",
+            site_title=os.environ.get("SITE_TITLE", "aigenos — Daily AI Digest").strip(),
+            site_url=os.environ.get("SITE_URL", "").strip().rstrip("/"),
+            subscribe_url=os.environ.get("SUBSCRIBE_URL", "").strip(),
+            slack_webhook_url=os.environ.get("SLACK_WEBHOOK_URL", "").strip(),
+            discord_webhook_url=os.environ.get("DISCORD_WEBHOOK_URL", "").strip(),
+            telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
+            telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID", "").strip(),
+            enable_audio=_get_bool("ENABLE_AUDIO", False),
+            audio_dir=os.environ.get("AUDIO_DIR", "out").strip() or "out",
         )

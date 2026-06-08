@@ -94,6 +94,20 @@ class TestConfig(unittest.TestCase):
             cfg = Config.from_env()
         self.assertEqual(cfg.model, "gemini-2.5-pro")
 
+    def test_ollama_needs_no_provider_key(self):
+        env = self._env(PROVIDER="ollama", RESEND_API_KEY="r")
+        with mock.patch.dict(os.environ, env, clear=True):
+            cfg = Config.from_env()
+        self.assertEqual(cfg.provider, "ollama")
+        self.assertEqual(cfg.model, "llama3.1")
+        self.assertEqual(cfg.ollama_host, "http://localhost:11434")
+
+    def test_dry_run_skips_resend_requirement(self):
+        env = self._env(PROVIDER="ollama", DRY_RUN="true")  # no RESEND key
+        with mock.patch.dict(os.environ, env, clear=True):
+            cfg = Config.from_env()
+        self.assertTrue(cfg.dry_run)
+
     def test_missing_provider_key_aborts(self):
         env = self._env(RESEND_API_KEY="r")  # no GEMINI key
         with mock.patch.dict(os.environ, env, clear=True):
