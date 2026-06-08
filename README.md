@@ -2,6 +2,13 @@
 
 > Daily AI Intelligence Agent — stay at the cutting edge of AI in 90 seconds a day.
 
+> 🛠 **Also in this repo:** [`forge/`](forge/) — **Forge**, a local, self-hosted
+> agentic dev super-app (Claude Code / Cowork–style terminal agent **plus an
+> autonomous engineering team**: PM → Architect → Coders → Tester → DevOps →
+> Reviewer) that runs against **your own LLM** (Ollama, any OpenAI-compatible
+> endpoint, or Anthropic) inside a filesystem sandbox. See
+> [`forge/README.md`](forge/README.md).
+
 An autonomous agent that **every day** fetches the latest from frontier AI labs,
 AI-engineer newsletters, infra vendors, community feeds (Reddit/HN), arXiv, and
 **Hugging Face Daily Papers**, then uses an LLM (**Gemini, Claude, or local
