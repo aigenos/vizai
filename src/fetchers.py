@@ -21,7 +21,7 @@ from .sources import ARXIV_CATEGORIES, ARXIV_QUERIES, RSS_FEEDS, Feed
 
 log = logging.getLogger("aigenos.fetchers")
 
-USER_AGENT = "aigenos-ai-digest/1.0 (+https://github.com/aigenos/aigenos)"
+USER_AGENT = "dAIly-aigenos/1.0 (+https://github.com/aigenos)"
 ARXIV_API = "http://export.arxiv.org/api/query"
 ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 

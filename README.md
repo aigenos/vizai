@@ -2,6 +2,10 @@
 
 > Daily AI Intelligence Agent — stay at the cutting edge of AI in 90 seconds a day.
 
+**📬 See a live example:** [aigenos.github.io/dAIly](https://aigenos.github.io/dAIly) ·
+or open [`docs/`](docs/) in this repo for the latest published issue.
+*(Update the URL if you rename the repo or org.)*
+
 An autonomous agent that **every day** fetches the latest from frontier AI labs,
 AI-engineer newsletters, infra vendors, community feeds (Reddit/HN), arXiv, and
 **Hugging Face Daily Papers**, then uses an LLM (**Gemini, Claude, or local

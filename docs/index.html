@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>aigenos — Daily AI Digest</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg:#f3f4f8; --surface:#fff; --text:#14142a; --muted:#6b6b85;
+  --accent:#6366f1; --border:#e8e6f5; --shadow:0 1px 2px rgba(20,20,42,.04),0 8px 24px rgba(20,20,42,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#0a0a14; --surface:#14141f; --text:#ececf5; --muted:#8e8ea8;
+    --accent:#8b8cff; --border:#2a2a3d; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Variable','Segoe UI',Roboto,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; line-height:1.6;
+}
+.wrap { max-width:720px; margin:0 auto; padding:32px 18px 64px; }
+.hero {
+  background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#c026d3 100%);
+  border-radius:20px; padding:34px 30px; color:#fff;
+  box-shadow:0 8px 32px rgba(79,70,229,.25);
+}
+.hero .kicker { font-size:11px; letter-spacing:2px; text-transform:uppercase; opacity:.8; font-weight:600; }
+.hero h1 { margin:10px 0 6px; font-size:30px; font-weight:700; letter-spacing:-.02em; }
+.hero p { margin:0; font-size:15px; opacity:.92; }
+ul.issues { list-style:none; margin:24px 0 0; padding:0; }
+li.issue a {
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:16px 20px; margin:12px 0; text-decoration:none; color:var(--text);
+  box-shadow:var(--shadow); transition:transform .12s ease, border-color .12s ease;
+}
+li.issue a:hover { transform:translateY(-2px); border-color:var(--accent); }
+li.issue .date { font-weight:650; font-size:16px; }
+li.issue .go { color:var(--accent); font-weight:700; font-size:14px; }
+.empty { color:var(--muted); margin-top:24px; }
+.foot { text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }
+.foot a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="kicker">by aigenos · daily ai intelligence</div>
+    <h1>d<span style="color:#fcd34d;">AI</span>ly</h1>
+    <p>Stay at the cutting edge of AI — in 90 seconds a day.</p>
+  </div>
+    <ul class="issues">
+    <li class="issue"><a href="digests/digest_20260609.html"><span class="date">Tuesday, June 09, 2026</span><span class="go">Read →</span></a></li>
+  </ul>
+  <div class="foot">
+    <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv.
+  </div>
+</div>
+</body>
+</html>

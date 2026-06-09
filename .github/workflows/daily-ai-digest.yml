@@ -2,9 +2,9 @@ name: Daily AI Digest
 
 on:
   schedule:
-    # 11:00 UTC daily = 7:00 AM US Eastern (EDT, UTC-4). In winter (EST, UTC-5)
-    # this becomes 6:00 AM ET — bump to "0 12 * * *" if you want 7 AM year-round.
-    - cron: "0 11 * * *"
+    # 12:00 UTC daily = 8:00 AM US Eastern (EDT, UTC-4). In winter (EST, UTC-5)
+    # this is 7:00 AM ET — change to "0 13 * * *" if you want 8 AM year-round.
+    - cron: "0 12 * * *"
   workflow_dispatch: {} # allow manual runs from the Actions tab
 
 # Avoid overlapping runs.
@@ -20,6 +20,10 @@ jobs:
   digest:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The `secrets` context can't be used in an `if:` — map it to job-level env
+    # so the restore step can gate on `env.OPPORTUNITY_B64` instead.
+    env:
+      OPPORTUNITY_B64: ${{ secrets.OPPORTUNITY_B64 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,10 +45,10 @@ jobs:
       #   base64 -w0 src/private/opportunity.py        (Linux)
       #   certutil -encode src/private/opportunity.py tmp && type tmp   (Windows)
       - name: Restore private sections (optional)
-        if: ${{ secrets.OPPORTUNITY_B64 != '' }}
+        if: ${{ env.OPPORTUNITY_B64 != '' }}
         run: |
           mkdir -p src/private
-          echo "${{ secrets.OPPORTUNITY_B64 }}" | base64 -d > src/private/opportunity.py
+          printf '%s' "$OPPORTUNITY_B64" | base64 -d > src/private/opportunity.py
           echo "Restored private opportunity section."
 
       - name: Build, send, archive & notify

@@ -152,8 +152,8 @@ none, mark <em>(speculative — no validation signal yet)</em> honestly.</li>
 <li><strong>First step this week:</strong> one concrete action to validate or
 prototype it in the next 7 days.</li>
 </ul>
-Make this the strongest, most shareable pick — it is the public teaser for the
-full Opportunity Map.""")
+Make this the strongest, most shareable pick of the day — the single best thing
+to build right now.""")
 
 _SECTION_STACK = ("stack", 30, """\
 <!--SECTION:stack-->
@@ -210,12 +210,21 @@ _PUBLIC_SECTIONS: list[tuple[str, int, str]] = [
 ]
 
 
+def _public_only() -> bool:
+    """When DAILY_PUBLIC_ONLY is set, skip private sections entirely — used to
+    generate a clean public sample/archive with no private content to strip."""
+    import os
+    return os.environ.get("DAILY_PUBLIC_ONLY", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _load_private_sections() -> list[tuple[str, int, str]]:
     """Load optional private section blocks from the gitignored src/private/.
 
     The Opportunity Map lives there. A public clone has no such module, so this
     returns [] and the briefing is produced without it — the secret never ships.
     """
+    if _public_only():
+        return []
     out: list[tuple[str, int, str]] = []
     try:
         from .private import opportunity  # type: ignore
@@ -228,6 +237,20 @@ def _load_private_sections() -> list[tuple[str, int, str]]:
 def private_section_ids() -> list[str]:
     """Section ids that must be stripped before publishing publicly."""
     return [sid for sid, _, _ in _load_private_sections()]
+
+
+def private_sentinels() -> list[str]:
+    """Phrases that must NEVER appear in the public copy. Used to strip private
+    sections by heading (when the model omits markers) and to fail-closed if any
+    private content survives. Always loads the declared sentinels (independent of
+    DAILY_PUBLIC_ONLY) so the leak-check is defense-in-depth."""
+    out: list[str] = []
+    try:
+        from .private import opportunity  # type: ignore
+        out += list(getattr(opportunity, "PUBLIC_SENTINELS", []))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
 
 def build_instructions() -> str:

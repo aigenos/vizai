@@ -25,18 +25,27 @@ log = logging.getLogger("aigenos.archive")
 _DIGEST_RX = re.compile(r"digest_(\d{8})\.html$")
 
 
-def strip_private_sections(body_fragment: str, private_ids: list[str]) -> str:
-    """Remove each private section: from its <!--SECTION:id--> marker up to the
-    next <!--SECTION:...--> marker (or end of fragment if it's the last one)."""
+def strip_private_sections(
+    body_fragment: str, private_ids: list[str], sentinels: list[str] | None = None
+) -> str:
+    """Remove private sections two ways, because a weak model may omit markers:
+
+    1. Marker-based: from <!--SECTION:id--> to the next marker (clean path).
+    2. Heading-based fallback: any <h2> whose text contains a private sentinel,
+       through to the next <h2> (or end). Catches the case where the model
+       dropped the comment marker but kept the heading.
+    """
     out = body_fragment
     for sid in private_ids:
-        # Match the marker, then everything up to (but not including) the next
-        # section marker, or the end of the string.
-        pattern = re.compile(
+        out = re.sub(
             r"<!--SECTION:" + re.escape(sid) + r"-->.*?(?=<!--SECTION:|\Z)",
-            flags=re.DOTALL,
+            "", out, flags=re.DOTALL,
         )
-        out = pattern.sub("", out)
+    for kw in (sentinels or []):
+        out = re.sub(
+            r"<h2[^>]*>[^<]*" + re.escape(kw) + r".*?(?=<h2|\Z)",
+            "", out, flags=re.DOTALL | re.IGNORECASE,
+        )
     return out
 
 
@@ -117,7 +126,7 @@ li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; }}
   </div>
   {body}
   <div class="foot">
-    Built with <a href="https://github.com/aigenos/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv.
+    <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv.
   </div>
 </div>
 </body>
@@ -142,12 +151,32 @@ def _render_index(cfg, issues: list[tuple[str, datetime]]) -> str:
     )
 
 
-def publish(cfg, body_fragment: str, now: datetime, engine: str, private_ids: list[str]) -> str:
+def publish(
+    cfg, body_fragment: str, now: datetime, engine: str,
+    private_ids: list[str], sentinels: list[str] | None = None,
+) -> str:
     """Strip private sections, write the public issue, regenerate the index.
+
+    FAIL-CLOSED: if any private sentinel survives stripping (e.g. a weak model
+    mangled the section so neither marker nor heading matched), we refuse to
+    publish rather than risk leaking paid/private content.
 
     Returns the path to the written issue file.
     """
-    public_fragment = strip_private_sections(body_fragment, private_ids)
+    sentinels = sentinels or []
+    before_len = len(body_fragment)
+    public_fragment = strip_private_sections(body_fragment, private_ids, sentinels)
+    removed = before_len - len(public_fragment)
+
+    leaks = [kw for kw in sentinels if kw.lower() in public_fragment.lower()]
+    if leaks:
+        raise RuntimeError(
+            "refusing to publish public archive — private content may have leaked "
+            f"(sentinel still present: {leaks}). The model likely renamed or "
+            "dropped the private section's marker AND heading. Email still sent; "
+            "archive skipped this run."
+        )
+
     # Public archive gets the subscribe CTA (the freemium upsell); the email does
     # not need it. No-op when SUBSCRIBE_URL is unset.
     cta = subscribe_cta(getattr(cfg, "subscribe_url", ""))
@@ -168,6 +197,9 @@ def publish(cfg, body_fragment: str, now: datetime, engine: str, private_ids: li
         fh.write(index_html)
 
     log.info("archived public issue → %s (index regenerated)", issue_path)
-    if private_ids:
-        log.info("stripped %d private section(s) from public copy: %s", len(private_ids), ", ".join(private_ids))
+    if private_ids or sentinels:
+        log.info(
+            "private-content guard: removed %d chars; sentinels clear (%s)",
+            removed, ", ".join(sentinels) or "none",
+        )
     return issue_path

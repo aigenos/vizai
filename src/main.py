@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from . import archive, audio, notifiers
-from .analyzer import build_digest, private_section_ids
+from .analyzer import build_digest, private_section_ids, private_sentinels
 from .config import Config
 from .emailer import render_html, send_email, subject_line
 from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv, fetch_hf_papers
@@ -69,7 +69,7 @@ def run() -> int:
     #    Archive publishes a PUBLIC copy with private sections stripped.
     if cfg.publish_archive:
         try:
-            archive.publish(cfg, body, now, engine, private_section_ids())
+            archive.publish(cfg, body, now, engine, private_section_ids(), private_sentinels())
         except Exception as exc:  # noqa: BLE001 — never let archiving kill the run
             log.warning("archive publish failed: %s", exc)
     if cfg.enable_audio:
