@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 import requests
 
@@ -109,11 +110,23 @@ _TEMPLATE = """\
 <body class="aigenos-bg" style="margin:0;padding:0;background:#f3f4f8;color-scheme:light dark;">
 <div class="aigenos-shell" style="max-width:720px;margin:0 auto;padding:28px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Variable','Segoe UI',Roboto,'SF Pro Display','Helvetica Neue',Arial,sans-serif;font-feature-settings:'cv11','ss03';-webkit-font-smoothing:antialiased;">
 
-  <!-- Hero -->
-  <div class="aigenos-hero" style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#c026d3 100%);border-radius:20px;padding:30px 30px 24px;color:#ffffff;box-shadow:0 8px 32px rgba(79,70,229,0.25);">
-    <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.78;font-weight:600;">by aigenos · daily ai intelligence</div>
-    <h1 style="margin:10px 0 6px;font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.15;">d<span style="color:#fcd34d;">AI</span>ly</h1>
-    <div class="aigenos-hero-sub" style="font-size:14px;opacity:.92;font-weight:500;">{date}</div>
+  <!-- Hero / masthead -->
+  <div class="aigenos-hero" style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#c026d3 100%);border-radius:20px;padding:26px 28px;color:#ffffff;box-shadow:0 8px 32px rgba(79,70,229,0.25);">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="width:54px;vertical-align:middle;">
+        <div style="width:52px;height:52px;border-radius:15px;background:rgba(255,255,255,0.16);text-align:center;font-size:27px;line-height:52px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18);">🤖</div>
+      </td>
+      <td style="vertical-align:middle;padding-left:14px;">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.8;font-weight:600;">by aigenos · daily ai intelligence</div>
+        <div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.05;margin-top:3px;">d<span style="color:#fcd34d;">AI</span>ly</div>
+      </td>
+      <td style="vertical-align:middle;text-align:right;white-space:nowrap;">
+        <span style="display:inline-block;background:rgba(255,255,255,0.18);padding:6px 13px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.3px;">{date_short}</span>
+      </td>
+    </tr></table>
+    <div class="aigenos-hero-sub" style="font-size:13.5px;opacity:.92;font-weight:500;line-height:1.5;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,0.18);">
+      📅 {date} &nbsp;·&nbsp; Cutting-edge AI in ~90 seconds — the news, the must-read research, and what to build next.
+    </div>
   </div>
 
   <!-- Body card -->
@@ -203,6 +216,32 @@ def _enhance_read_time(body: str) -> str:
     return _READTIME_RX.sub(repl, body)
 
 
+def _domain(url: str) -> str:
+    try:
+        net = urlparse(url).netloc.lower()
+        return net[4:] if net.startswith("www.") else net
+    except (ValueError, AttributeError):
+        return ""
+
+
+def _add_source_favicons(html: str) -> str:
+    """Prepend each link with its site's favicon, so every source shows a small
+    publisher icon — the visual signature of a curated newsletter. Uses Google's
+    favicon service (no hosting needed; cached by Gmail)."""
+    def repl(m: re.Match) -> str:
+        open_tag = m.group(0)
+        dom = _domain(m.group(1))
+        if not dom or dom.endswith("github.com"):
+            return open_tag
+        fav = (
+            f'<img src="https://www.google.com/s2/favicons?domain={dom}&sz=64" '
+            'width="14" height="14" alt="" '
+            'style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;">'
+        )
+        return fav + open_tag
+    return re.sub(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>', repl, html)
+
+
 def render_html(body_fragment: str, now: datetime, engine: str = "", cta: str = "") -> str:
     """Render the full email. `cta` is an optional pre-built HTML block (e.g. a
     subscribe call-to-action) injected after the body — it is NOT run through the
@@ -210,9 +249,11 @@ def render_html(body_fragment: str, now: datetime, engine: str = "", cta: str = 
     engine_label = f"powered by {engine}." if engine else "powered by AI."
     styled_body = _inline_styles(body_fragment)
     styled_body = _enhance_read_time(styled_body)
+    styled_body = _add_source_favicons(styled_body)
     return _TEMPLATE.format(
         title="dAIly — Daily AI Digest",
         date=now.strftime("%A, %B %d, %Y"),
+        date_short=now.strftime("%b %d").replace(" 0", " "),
         body=styled_body,
         cta=cta,
         engine=engine_label,
