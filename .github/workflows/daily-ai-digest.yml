@@ -53,7 +53,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          EMAIL_TO: ${{ vars.EMAIL_TO || 'mukeshatnyc1@gmail.com' }}
+          EMAIL_TO: ${{ vars.EMAIL_TO }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'AI Daily Digest <onboarding@resend.dev>' }}
           DIGEST_MODEL: ${{ vars.DIGEST_MODEL }}
           LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '7' }}

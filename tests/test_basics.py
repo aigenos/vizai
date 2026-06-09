@@ -67,6 +67,7 @@ class TestConfig(unittest.TestCase):
             "GOOGLE_API_KEY": "",
             "ANTHROPIC_API_KEY": "",
             "RESEND_API_KEY": "",
+            "EMAIL_TO": "to@example.com",
             "DIGEST_MODEL": "",
         }
         base.update(overrides)

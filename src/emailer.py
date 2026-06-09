@@ -87,6 +87,9 @@ _THEME_STYLES = """
   }
   .aigenos-footer { color: var(--muted) !important; }
   .aigenos-hero-sub { color: rgba(255,255,255,0.85) !important; }
+  .aigenos-src-row { background: var(--surface-elev) !important; border-color: var(--border) !important; }
+  a.aigenos-src-title { color: var(--text) !important; }
+  .aigenos-src-meta { color: var(--muted) !important; }
 }
 @media (max-width: 600px) {
   .aigenos-shell { padding: 16px 10px !important; }
@@ -190,7 +193,13 @@ _TAG_STYLES = {
 def _inline_styles(body: str) -> str:
     out = body
     for tag, styled in _TAG_STYLES.items():
-        out = out.replace(tag, styled)
+        if tag == "<a ":
+            # Only style bare anchors (model output). Skip anchors that already
+            # carry a class (e.g. the pre-styled Top Stories rows) so we don't
+            # produce duplicate class/style attributes.
+            out = re.sub(r"<a (?![^>]*\bclass=)", styled, out)
+        else:
+            out = out.replace(tag, styled)
     return out
 
 
@@ -230,6 +239,9 @@ def _add_source_favicons(html: str) -> str:
     favicon service (no hosting needed; cached by Gmail)."""
     def repl(m: re.Match) -> str:
         open_tag = m.group(0)
+        # Top Stories rows already render their own thumbnail + favicon.
+        if "aigenos-src" in open_tag:
+            return open_tag
         dom = _domain(m.group(1))
         if not dom or dom.endswith("github.com"):
             return open_tag

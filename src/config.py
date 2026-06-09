@@ -65,6 +65,11 @@ class Config:
     # Audio / TTS version of The Pulse.
     enable_audio: bool
     audio_dir: str
+    # Deterministic "Top Stories" strip — real links + og:image thumbnails,
+    # ranked by priority. Works on any provider (even link-less local models).
+    enable_top_stories: bool
+    enable_images: bool
+    top_stories_count: int
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -82,6 +87,7 @@ class Config:
         ).strip()
         resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
         dry_run = _get_bool("DRY_RUN", False)
+        email_to = os.environ.get("EMAIL_TO", "").strip()
 
         # Only the selected provider's key is required (ollama needs none).
         missing = []
@@ -89,9 +95,11 @@ class Config:
             missing.append("GEMINI_API_KEY")
         if provider == "claude" and not anthropic_api_key:
             missing.append("ANTHROPIC_API_KEY")
-        # Resend is only needed when we actually send (skipped in DRY_RUN).
+        # Resend + recipient are only needed when we actually send (not DRY_RUN).
         if not dry_run and not resend_api_key:
             missing.append("RESEND_API_KEY")
+        if not dry_run and not email_to:
+            missing.append("EMAIL_TO")
         if missing:
             raise SystemExit(
                 "Missing required environment variable(s): "
@@ -108,7 +116,7 @@ class Config:
             resend_api_key=resend_api_key,
             ollama_host=os.environ.get("OLLAMA_HOST", "http://localhost:11434").strip(),
             dry_run=dry_run,
-            email_to=os.environ.get("EMAIL_TO", "mukeshatnyc1@gmail.com").strip(),
+            email_to=email_to,
             email_from=os.environ.get(
                 "EMAIL_FROM", "AI Daily Digest <onboarding@resend.dev>"
             ).strip(),
@@ -128,4 +136,7 @@ class Config:
             telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID", "").strip(),
             enable_audio=_get_bool("ENABLE_AUDIO", False),
             audio_dir=os.environ.get("AUDIO_DIR", "out").strip() or "out",
+            enable_top_stories=_get_bool("ENABLE_TOP_STORIES", True),
+            enable_images=_get_bool("ENABLE_IMAGES", True),
+            top_stories_count=_get_int("TOP_STORIES_COUNT", 6),
         )

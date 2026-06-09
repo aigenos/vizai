@@ -112,11 +112,15 @@ This section MUST stand alone. A reader who stops here should still have the
 full day's signal. Two sub-blocks:
 
 <h3>🎯 Today's Game-Changer</h3>
-The single most important development from the last 24–72 hours — pick ONE. A
-2–3 sentence <p>: what happened (with the primary <a> link, named model / repo /
-number), then one tight clause on why it matters more than anything else today.
-If nothing is truly game-changing, say so honestly and elevate the most
-consequential item instead — do not manufacture drama.
+The single most important development from the last 24–72 hours — pick ONE.
+"Important" means biggest impact on what an AI builder can DO or KNOW: new
+models, capabilities, tools, benchmarks, or research. DEPRIORITIZE corporate /
+financial news (funding rounds, IPOs, SEC filings, hires, partnerships) — do not
+lead with it unless it directly changes capabilities. A 2–3 sentence <p>: what
+happened (with the primary <a> link, named model / repo / number), then one tight
+clause on why it matters more than anything else today. If nothing is truly
+game-changing, say so honestly and elevate the most consequential item instead —
+do not manufacture drama.
 
 <h3>📍 In a Nutshell</h3>
 A <ul> of 8–12 ultra-tight one-line bullets covering everything else important
@@ -349,6 +353,16 @@ def build_digest(cfg: Config, items: list[Item], now: datetime) -> str:
     # item's real URL. This makes every candidate-sourced claim verifiable.
     html, added = _backfill_links(html, selected)
     log.info("digest generated: %d chars (+%d source links backfilled)", len(html), added)
+
+    # Prepend the deterministic Top Stories strip — guaranteed real links +
+    # og:image thumbnails + priority order, independent of what the model emitted.
+    if cfg.enable_top_stories:
+        from . import enrich
+        top = enrich.build_top_stories(
+            selected, now, cfg.top_stories_count, cfg.enable_images
+        )
+        if top:
+            html = top + "\n" + html
     return html
 
 
