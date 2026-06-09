@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import sys
 from datetime import datetime, timezone
-from dotenv import load_dotenv
 
 from . import archive, audio, notifiers
 from .analyzer import build_digest, private_section_ids, private_sentinels
@@ -17,7 +16,14 @@ from .config import Config
 from .emailer import render_html, send_email, subject_line
 from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv, fetch_hf_papers
 
-load_dotenv()
+# Load .env for local runs. It's a dev convenience only — in CI the environment
+# is provided by the workflow, so a missing python-dotenv must not be fatal.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
 
 logging.basicConfig(
     level=logging.INFO,

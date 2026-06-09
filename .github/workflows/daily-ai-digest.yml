@@ -80,8 +80,12 @@ jobs:
       # Commit the freshly published archive (docs/) back to the repo so GitHub
       # Pages serves it. Enable Pages: Settings → Pages → Deploy from branch →
       # main → /docs. Only runs when there are archive changes to commit.
+      # Non-fatal: a push-permission issue must NOT mark the digest run as failed
+      # (the email is the real deliverable). If this is skipped/red, enable
+      # Settings → Actions → General → Workflow permissions → "Read and write".
       - name: Publish archive to repo
         if: ${{ vars.PUBLISH_ARCHIVE != 'false' }}
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

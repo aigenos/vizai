@@ -2,6 +2,7 @@
 requests>=2.32.0
 feedparser>=6.0.11
 python-dateutil>=2.9.0
+python-dotenv>=1.0.0     # loads .env for local runs (no-op in CI)
 
 # Analysis providers — install at least the one matching PROVIDER.
 # (Both are light; CI installs both so you can switch via the PROVIDER var.)
