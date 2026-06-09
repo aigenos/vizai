@@ -124,6 +124,7 @@ li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; }}
     <h1>d<span style="color:#fcd34d;">AI</span>ly</h1>
     <p>{tagline}</p>
   </div>
+  {subscribe}
   {body}
   <div class="foot">
     <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv.
@@ -131,6 +132,45 @@ li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; }}
 </div>
 </body>
 </html>"""
+
+
+def _render_subscribe(cfg) -> str:
+    """One-click subscribe box for the landing page.
+
+    - If SUBSCRIBE_FORM_ACTION is set (e.g. a Buttondown embed-subscribe URL),
+      render a real one-field POST form — works on a static site, no backend.
+    - Else if SUBSCRIBE_URL is set, render a button linking to it.
+    - Else render nothing.
+    """
+    action = getattr(cfg, "subscribe_form_action", "")
+    url = getattr(cfg, "subscribe_url", "")
+    card_open = (
+        '<div style="background:var(--surface);border:1px solid var(--border);'
+        'border-radius:16px;padding:22px 24px;margin:18px 0 6px;box-shadow:var(--shadow);'
+        'text-align:center;">'
+        '<div style="font-size:19px;font-weight:750;color:var(--text);letter-spacing:-.01em;">'
+        '📬 Get dAIly free in your inbox</div>'
+        '<div style="font-size:14px;color:var(--muted);margin:6px 0 15px;">'
+        'One email a day · the AI signal that matters in ~90 seconds · unsubscribe anytime.</div>'
+    )
+    btn = (
+        'padding:12px 24px;border:0;border-radius:10px;font-weight:700;font-size:15px;'
+        'background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;cursor:pointer;'
+        'text-decoration:none;display:inline-block;'
+    )
+    if action:
+        form = (
+            f'<form action="{action}" method="post" target="popupwindow" '
+            'style="display:flex;gap:8px;max-width:440px;margin:0 auto;flex-wrap:wrap;justify-content:center;">'
+            '<input type="email" name="email" required placeholder="you@email.com" '
+            'style="flex:1;min-width:200px;padding:12px 14px;border:1px solid var(--border);'
+            'border-radius:10px;font-size:15px;background:var(--bg);color:var(--text);">'
+            f'<button type="submit" style="{btn}">Subscribe →</button></form>'
+        )
+        return card_open + form + "</div>"
+    if url:
+        return card_open + f'<a href="{url}" style="{btn}">Subscribe →</a></div>'
+    return ""
 
 
 def _render_index(cfg, issues: list[tuple[str, datetime]]) -> str:
@@ -147,6 +187,7 @@ def _render_index(cfg, issues: list[tuple[str, datetime]]) -> str:
     return _INDEX_TEMPLATE.format(
         title=cfg.site_title,
         tagline="Stay at the cutting edge of AI — in 90 seconds a day.",
+        subscribe=_render_subscribe(cfg),
         body=body,
     )
 

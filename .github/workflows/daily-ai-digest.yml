@@ -68,6 +68,7 @@ jobs:
           SITE_TITLE: ${{ vars.SITE_TITLE || 'dAIly — Daily AI Digest' }}
           SITE_URL: ${{ vars.SITE_URL }}
           SUBSCRIBE_URL: ${{ vars.SUBSCRIBE_URL }}
+          SUBSCRIBE_FORM_ACTION: ${{ vars.SUBSCRIBE_FORM_ACTION }}
           # Audio digest (free gTTS).
           ENABLE_AUDIO: ${{ vars.ENABLE_AUDIO || 'false' }}
           # Optional multi-channel delivery.

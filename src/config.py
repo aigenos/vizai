@@ -57,6 +57,7 @@ class Config:
     site_title: str
     site_url: str
     subscribe_url: str
+    subscribe_form_action: str
     # Multi-channel delivery (all optional; blank = disabled).
     slack_webhook_url: str
     discord_webhook_url: str
@@ -130,6 +131,9 @@ class Config:
             site_title=os.environ.get("SITE_TITLE", "aigenos — Daily AI Digest").strip(),
             site_url=os.environ.get("SITE_URL", "").strip().rstrip("/"),
             subscribe_url=os.environ.get("SUBSCRIBE_URL", "").strip(),
+            # POST endpoint for the landing-page subscribe form (e.g. Buttondown's
+            # embed-subscribe URL). When set, the index renders a one-field form.
+            subscribe_form_action=os.environ.get("SUBSCRIBE_FORM_ACTION", "").strip(),
             slack_webhook_url=os.environ.get("SLACK_WEBHOOK_URL", "").strip(),
             discord_webhook_url=os.environ.get("DISCORD_WEBHOOK_URL", "").strip(),
             telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
