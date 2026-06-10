@@ -6,8 +6,9 @@ __pycache__/
 venv/
 .env
 
-# Local digest output / artifacts
-digest_*.html
+# Local digest output / artifacts (root only — the published archive lives in
+# docs/digests/ and MUST be committable, so the pattern is anchored with "/").
+/digest_*.html
 out/
 *.log
 
