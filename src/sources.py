@@ -8,10 +8,16 @@ Two kinds of sources:
 
 RSS URLs change over time; a broken feed is skipped gracefully at fetch time and
 the web-search layer is expected to backfill the gap.
+
+FIELD PRESETS: set ``SOURCE_PRESET`` (e.g. ``security``, ``biotech``,
+``fintech``) to swap the whole source pack for another field — see
+``src/presets/``. The default (``ai``) is exactly the lists defined below.
 """
 
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass
 
 
@@ -110,3 +116,30 @@ ARXIV_QUERIES: list[str] = [
     'abs:"retrieval augmented" OR abs:"RAG" AND abs:"agent"',
     'abs:"reasoning" AND (abs:"LLM" OR abs:"language model") AND abs:"benchmark"',
 ]
+
+# ── Field presets ─────────────────────────────────────────────────────────────
+# SOURCE_PRESET swaps the source pack for another field at import time. The
+# preset module (src/presets/<name>.py) may override any of RSS_FEEDS,
+# WEB_SEARCH_TARGETS, ARXIV_CATEGORIES, ARXIV_QUERIES; missing names keep the
+# AI defaults above. Fail-open: an unknown preset logs a warning and keeps the
+# defaults rather than killing the run. (This import sits at the bottom so the
+# preset module can import `Feed` from here without a circular-import problem.)
+_PRESET = os.environ.get("SOURCE_PRESET", "").strip().lower()
+if _PRESET and _PRESET != "ai":
+    try:
+        import importlib
+
+        _mod = importlib.import_module(f"{__package__}.presets.{_PRESET}")
+        RSS_FEEDS = list(getattr(_mod, "RSS_FEEDS", RSS_FEEDS))
+        WEB_SEARCH_TARGETS = list(getattr(_mod, "WEB_SEARCH_TARGETS", WEB_SEARCH_TARGETS))
+        ARXIV_CATEGORIES = list(getattr(_mod, "ARXIV_CATEGORIES", ARXIV_CATEGORIES))
+        ARXIV_QUERIES = list(getattr(_mod, "ARXIV_QUERIES", ARXIV_QUERIES))
+        logging.getLogger("aigenos.sources").info(
+            "source preset %r: %d feed(s), %d web target(s)",
+            _PRESET, len(RSS_FEEDS), len(WEB_SEARCH_TARGETS),
+        )
+    except Exception as exc:  # noqa: BLE001 — bad preset must not kill the run
+        logging.getLogger("aigenos.sources").warning(
+            "SOURCE_PRESET=%r failed to load (%s) — using default 'ai' sources",
+            _PRESET, exc,
+        )
