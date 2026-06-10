@@ -60,15 +60,29 @@ jobs:
           EMAIL_TO: ${{ vars.EMAIL_TO }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'AI Daily Digest <onboarding@resend.dev>' }}
           DIGEST_MODEL: ${{ vars.DIGEST_MODEL }}
+          # Optional stronger model for the Opportunity sections (two-pass).
+          OPPORTUNITY_MODEL: ${{ vars.OPPORTUNITY_MODEL }}
+          # Field preset: ai (default) | security | biotech | fintech | yours.
+          SOURCE_PRESET: ${{ vars.SOURCE_PRESET }}
           LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '7' }}
           ENABLE_WEB_SEARCH: ${{ vars.ENABLE_WEB_SEARCH || 'true' }}
           DRY_RUN: ${{ vars.DRY_RUN || 'false' }}
+          # Drop items already covered by a previous digest (docs/.state/).
+          CROSS_DAY_DEDUP: ${{ vars.CROSS_DAY_DEDUP || 'true' }}
+          # HEAD-check links before sending; dead ones are flagged, never fatal.
+          ENABLE_LINK_CHECK: ${{ vars.ENABLE_LINK_CHECK || 'true' }}
           # Public archive (GitHub Pages). Private sections are stripped on publish.
           PUBLISH_ARCHIVE: ${{ vars.PUBLISH_ARCHIVE || 'true' }}
           SITE_TITLE: ${{ vars.SITE_TITLE || 'dAIly — Daily AI Digest' }}
           SITE_URL: ${{ vars.SITE_URL }}
           SUBSCRIBE_URL: ${{ vars.SUBSCRIBE_URL }}
           SUBSCRIBE_FORM_ACTION: ${{ vars.SUBSCRIBE_FORM_ACTION }}
+          # Provider-agnostic subscribe form snippet (Buttondown/Beehiiv/...).
+          SUBSCRIBE_EMBED_HTML: ${{ vars.SUBSCRIBE_EMBED_HTML }}
+          # Unsubscribe link or merge tag for the email footer — required
+          # before sending to anyone but yourself.
+          UNSUBSCRIBE_URL: ${{ vars.UNSUBSCRIBE_URL }}
+          SHOW_MODEL_ATTRIBUTION: ${{ vars.SHOW_MODEL_ATTRIBUTION || 'true' }}
           # Audio digest (free gTTS).
           ENABLE_AUDIO: ${{ vars.ENABLE_AUDIO || 'false' }}
           # Optional multi-channel delivery.
