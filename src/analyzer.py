@@ -328,6 +328,12 @@ def _select_for_prompt(items: list[Item]) -> list[Item]:
     return selected
 
 
+def select_for_prompt(items: list[Item]) -> list[Item]:
+    """Public wrapper — main.py uses it to mark exactly the items the model saw
+    as 'covered' in the cross-day dedup state."""
+    return _select_for_prompt(items)
+
+
 def _format_items(items: list[Item]) -> str:
     by_cat: dict[str, list[Item]] = {
         "lab": [], "newsletter": [], "infra": [], "community": [], "research": [],
