@@ -1,0 +1,277 @@
+"""Tests for the digest output-quality fixes — no network, no API keys.
+
+Covers: arXiv https normalization, redundant source-link stripping, the
+one-item-one-section prompt rule, the two-pass OPPORTUNITY_MODEL flow, footer
+links, dark-mode CSS (no var() in the dark block), and the private-section
+guarantee (present in the email, stripped from the archive).
+"""
+
+from __future__ import annotations
+
+import os
+import unittest
+from datetime import datetime, timezone
+from unittest import mock
+
+from src import analyzer
+from src.analyzer import (
+    build_instructions,
+    normalize_arxiv_links,
+    postprocess,
+    strip_redundant_source_links,
+)
+from src.archive import strip_private_sections
+from src.config import Config
+from src.emailer import _THEME_STYLES, footer_links, render_html
+
+
+def _make_cfg(**env):
+    base = {
+        "PROVIDER": "ollama",
+        "DRY_RUN": "true",
+        "EMAIL_TO": "to@example.com",
+    }
+    base.update(env)
+    with mock.patch.dict(os.environ, base, clear=True):
+        return Config.from_env()
+
+
+class TestArxivNormalization(unittest.TestCase):
+    def test_http_arxiv_becomes_https(self):
+        html = '<a href="http://arxiv.org/abs/2606.01234">Paper</a>'
+        self.assertEqual(
+            normalize_arxiv_links(html),
+            '<a href="https://arxiv.org/abs/2606.01234">Paper</a>',
+        )
+
+    def test_export_subdomain_normalized(self):
+        html = 'see http://export.arxiv.org/api/query'
+        self.assertEqual(
+            normalize_arxiv_links(html), "see https://export.arxiv.org/api/query"
+        )
+
+    def test_https_untouched(self):
+        html = '<a href="https://arxiv.org/abs/1">x</a>'
+        self.assertEqual(normalize_arxiv_links(html), html)
+
+
+class TestRedundantSourceLinks(unittest.TestCase):
+    def test_trailing_source_link_same_href_dropped(self):
+        html = (
+            '<li><a href="https://x.com/a">Title</a> — great stuff. '
+            '<a href="https://x.com/a">source</a></li>'
+        )
+        out = strip_redundant_source_links(html)
+        self.assertEqual(out.count("<a "), 1)
+        self.assertIn(">Title</a>", out)
+
+    def test_bracketed_source_link_dropped(self):
+        html = '<a href="https://x.com/a">Title</a> [<a href="https://x.com/a">source</a>]'
+        out = strip_redundant_source_links(html)
+        self.assertEqual(out.count("<a "), 1)
+
+    def test_different_href_kept(self):
+        html = (
+            '<a href="https://x.com/a">Title</a> '
+            '<a href="https://y.com/b">source</a>'
+        )
+        out = strip_redundant_source_links(html)
+        self.assertEqual(out.count("<a "), 2)
+
+    def test_meaningful_second_link_kept(self):
+        # Same href but a substantive label — not a redundant "source" suffix.
+        html = (
+            '<a href="https://x.com/a">Title</a> and '
+            '<a href="https://x.com/a">the full benchmark table</a>'
+        )
+        out = strip_redundant_source_links(html)
+        self.assertEqual(out.count("<a "), 2)
+
+    def test_postprocess_combines_passes(self):
+        html = (
+            '<li><a href="http://arxiv.org/abs/1">P</a> '
+            '<a href="http://arxiv.org/abs/1">source</a></li>'
+        )
+        out = postprocess(html)
+        self.assertEqual(out.count("<a "), 1)
+        self.assertIn("https://arxiv.org", out)
+        self.assertNotIn("http://arxiv.org", out)
+
+
+class TestPromptRules(unittest.TestCase):
+    def test_one_item_one_section_rule_in_system_prompt(self):
+        self.assertIn("ONE ITEM, ONE SECTION", analyzer.SYSTEM_PROMPT)
+
+    def test_opportunity_requires_two_signals(self):
+        instructions = build_instructions()
+        self.assertIn("TWO INDEPENDENT signals", instructions)
+        self.assertIn("QUANTIFY community interest", instructions)
+
+    def test_link_hygiene_rule_in_instructions(self):
+        self.assertIn("LINK HYGIENE", build_instructions())
+
+
+class TestTwoPassOpportunity(unittest.TestCase):
+    FIRST = (
+        "<!--SECTION:pulse-->\n<h2>⚡ The Pulse (90 sec read)</h2><p>News.</p>\n"
+        "<!--SECTION:opp_teaser-->\n<h2>🚀 Opportunity of the Day (2 min read)</h2>"
+        "<h3>WeakIdea</h3><p>meh</p>\n"
+        "<!--SECTION:stack-->\n<h2>📊 Stack Signals (3 min read)</h2><p>x</p>"
+    )
+    SECOND = (
+        "<!--SECTION:opp_teaser-->\n<h2>🚀 Opportunity of the Day (2 min read)</h2>"
+        "<h3>StrongIdea</h3><p>much better</p>"
+    )
+
+    def _cfg(self, opportunity_model=""):
+        return _make_cfg(OPPORTUNITY_MODEL=opportunity_model)
+
+    def test_unset_opportunity_model_single_pass(self):
+        cfg = self._cfg()
+        with mock.patch.object(
+            analyzer.providers, "generate", return_value=self.FIRST
+        ) as gen:
+            out = analyzer.build_digest(cfg, [], datetime(2026, 6, 10, tzinfo=timezone.utc))
+        self.assertEqual(gen.call_count, 1)
+        self.assertIn("WeakIdea", out)
+
+    def test_opportunity_model_triggers_second_pass(self):
+        cfg = self._cfg(opportunity_model="strong-model")
+        with mock.patch.object(
+            analyzer.providers, "generate", side_effect=[self.FIRST, self.SECOND]
+        ) as gen:
+            out = analyzer.build_digest(cfg, [], datetime(2026, 6, 10, tzinfo=timezone.utc))
+        self.assertEqual(gen.call_count, 2)
+        # Second pass ran with the stronger model.
+        self.assertEqual(gen.call_args_list[1][0][0].model, "strong-model")
+        self.assertIn("StrongIdea", out)
+        self.assertNotIn("WeakIdea", out)
+        # Non-opportunity sections untouched.
+        self.assertIn("The Pulse", out)
+        self.assertIn("Stack Signals", out)
+
+    def test_second_pass_failure_keeps_first_pass(self):
+        cfg = self._cfg(opportunity_model="strong-model")
+        with mock.patch.object(
+            analyzer.providers,
+            "generate",
+            side_effect=[self.FIRST, RuntimeError("boom")],
+        ):
+            out = analyzer.build_digest(cfg, [], datetime(2026, 6, 10, tzinfo=timezone.utc))
+        self.assertIn("WeakIdea", out)
+
+
+class TestFooter(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 6, 10, tzinfo=timezone.utc)
+
+    def test_all_links_render(self):
+        cfg = _make_cfg(
+            SITE_URL="https://me.github.io/dAIly",
+            SUBSCRIBE_URL="https://buttondown.com/me",
+            UNSUBSCRIBE_URL="{{{RESEND_UNSUBSCRIBE_URL}}}",
+        )
+        row = footer_links(cfg, self.now)
+        self.assertIn("digests/digest_20260610.html", row)
+        self.assertIn("https://buttondown.com/me", row)
+        self.assertIn("{{{RESEND_UNSUBSCRIBE_URL}}}", row)
+        self.assertIn("Unsubscribe", row)
+
+    def test_unsubscribe_excludable_for_archive(self):
+        cfg = _make_cfg(
+            SITE_URL="https://me.github.io/dAIly",
+            UNSUBSCRIBE_URL="https://u.example.com",
+        )
+        row = footer_links(cfg, self.now, include_unsubscribe=False)
+        self.assertNotIn("Unsubscribe", row)
+
+    def test_empty_when_nothing_configured(self):
+        cfg = _make_cfg()
+        self.assertEqual(footer_links(cfg, self.now), "")
+
+    def test_attribution_toggle(self):
+        with_engine = render_html("<p>x</p>", self.now, engine="gemini (flash)")
+        without = render_html("<p>x</p>", self.now, engine="")
+        self.assertIn("powered by gemini (flash)", with_engine)
+        self.assertNotIn("powered by", without)
+
+    def test_show_model_attribution_env(self):
+        cfg = _make_cfg(SHOW_MODEL_ATTRIBUTION="false")
+        self.assertFalse(cfg.show_model_attribution)
+        self.assertTrue(_make_cfg().show_model_attribution)
+
+
+class TestDarkModeCss(unittest.TestCase):
+    def test_no_var_in_dark_block(self):
+        # Gmail/Outlook strip CSS custom properties: the dark-mode block must
+        # use literal colors only.
+        dark = _THEME_STYLES.split("@media (prefers-color-scheme: dark)")[1]
+        dark = dark.split("@media", 1)[0]
+        self.assertNotIn("var(", dark)
+        self.assertIn("#0a0a14", dark)
+
+    def test_color_scheme_meta_present(self):
+        html = render_html("<p>x</p>", datetime(2026, 6, 10, tzinfo=timezone.utc))
+        self.assertIn('<meta name="color-scheme" content="light dark">', html)
+
+
+class TestPrivateSectionDelivery(unittest.TestCase):
+    """The Full Opportunity Map must reach the EMAIL but never the ARCHIVE."""
+
+    BODY = (
+        "<!--SECTION:pulse-->\n<h2>⚡ The Pulse (90 sec read)</h2><p>News.</p>\n"
+        "<!--SECTION:opportunity_map-->\n<h2>🗺️ Full Opportunity Map (5 min read)</h2>"
+        "<p>SECRET-BET-CONTENT</p>\n"
+        "<!--SECTION:stack-->\n<h2>📊 Stack Signals (3 min read)</h2><p>x</p>"
+    )
+
+    def test_email_html_contains_private_content(self):
+        html = render_html(self.BODY, datetime(2026, 6, 10, tzinfo=timezone.utc))
+        self.assertIn("SECRET-BET-CONTENT", html)
+        self.assertIn("<!--SECTION:opportunity_map-->", html)
+
+    def test_archive_strips_private_content(self):
+        public = strip_private_sections(self.BODY, ["opportunity_map"])
+        self.assertNotIn("SECRET-BET-CONTENT", public)
+        self.assertNotIn("Opportunity Map", public)
+        self.assertIn("The Pulse", public)
+        self.assertIn("Stack Signals", public)
+
+    def test_private_module_included_in_prompt_and_ids(self):
+        fake = [("opportunity_map", 25, "<!--SECTION:opportunity_map-->\n<h2>Map</h2>")]
+        with mock.patch.object(analyzer, "_load_private_sections", return_value=fake):
+            self.assertIn("opportunity_map", analyzer.private_section_ids())
+            self.assertIn("<!--SECTION:opportunity_map-->", build_instructions())
+
+    def test_public_clone_has_no_private_sections(self):
+        # With no module under src/private/, the briefing simply omits them.
+        self.assertEqual(
+            [sid for sid in analyzer.private_section_ids() if sid != "opportunity"],
+            analyzer.private_section_ids(),
+        )
+
+
+class TestTopStoriesPlacement(unittest.TestCase):
+    def test_disabled_by_default(self):
+        self.assertFalse(_make_cfg().enable_top_stories)
+
+    def test_when_enabled_renders_below_the_pulse(self):
+        cfg = _make_cfg(ENABLE_TOP_STORIES="true")
+        body = (
+            "<!--SECTION:pulse-->\n<h2>⚡ The Pulse (90 sec read)</h2><p>News.</p>\n"
+            "<!--SECTION:stack-->\n<h2>📊 Stack Signals (3 min read)</h2><p>x</p>"
+        )
+        top = "<!--SECTION:topstories-->\n<h2>📌 Top Stories</h2><p>rows</p>"
+        with mock.patch.object(analyzer.providers, "generate", return_value=body), \
+             mock.patch("src.enrich.build_top_stories", return_value=top):
+            out = analyzer.build_digest(cfg, [], datetime(2026, 6, 10, tzinfo=timezone.utc))
+        self.assertLess(
+            out.index("<!--SECTION:pulse-->"), out.index("<!--SECTION:topstories-->")
+        )
+        self.assertLess(
+            out.index("<!--SECTION:topstories-->"), out.index("<!--SECTION:stack-->")
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

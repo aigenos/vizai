@@ -47,6 +47,9 @@ class Config:
     email_to: str
     email_from: str
     model: str
+    # Optional stronger model for the Opportunity sections (two-pass synthesis).
+    # Blank = single pass with `model`, exactly the pre-existing behavior.
+    opportunity_model: str
     lookback_days: int
     enable_web_search: bool
     arxiv_max_results: int
@@ -58,6 +61,14 @@ class Config:
     site_url: str
     subscribe_url: str
     subscribe_form_action: str
+    # Raw HTML form snippet (e.g. Buttondown/Beehiiv embed) injected wherever a
+    # subscribe CTA renders. Takes precedence over the plain SUBSCRIBE_URL link.
+    subscribe_embed_html: str
+    # Unsubscribe link for the email footer. May be a URL or your sending
+    # platform's merge tag (e.g. Resend's {{{RESEND_UNSUBSCRIBE_URL}}}).
+    unsubscribe_url: str
+    # Show the "powered by <provider> (<model>)" line in the email footer.
+    show_model_attribution: bool
     # Multi-channel delivery (all optional; blank = disabled).
     slack_webhook_url: str
     discord_webhook_url: str
@@ -71,6 +82,12 @@ class Config:
     enable_top_stories: bool
     enable_images: bool
     top_stories_count: int
+    # Cross-day dedup: drop items already covered in a previous digest, tracked
+    # in <archive_dir>/.state/seen_items.json. Fail-open if the file is broken.
+    cross_day_dedup: bool
+    # HEAD-check every link in the digest before sending/publishing and flag
+    # dead ones. Fail-open: network trouble never aborts the run.
+    enable_link_check: bool
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -109,6 +126,7 @@ class Config:
             )
 
         model = os.environ.get("DIGEST_MODEL", "").strip() or DEFAULT_MODELS[provider]
+        opportunity_model = os.environ.get("OPPORTUNITY_MODEL", "").strip()
 
         return cls(
             provider=provider,
@@ -122,6 +140,7 @@ class Config:
                 "EMAIL_FROM", "AI Daily Digest <onboarding@resend.dev>"
             ).strip(),
             model=model,
+            opportunity_model=opportunity_model,
             lookback_days=_get_int("LOOKBACK_DAYS", 3),
             enable_web_search=_get_bool("ENABLE_WEB_SEARCH", True),
             arxiv_max_results=_get_int("ARXIV_MAX_RESULTS", 40),
@@ -134,13 +153,20 @@ class Config:
             # POST endpoint for the landing-page subscribe form (e.g. Buttondown's
             # embed-subscribe URL). When set, the index renders a one-field form.
             subscribe_form_action=os.environ.get("SUBSCRIBE_FORM_ACTION", "").strip(),
+            subscribe_embed_html=os.environ.get("SUBSCRIBE_EMBED_HTML", "").strip(),
+            unsubscribe_url=os.environ.get("UNSUBSCRIBE_URL", "").strip(),
+            show_model_attribution=_get_bool("SHOW_MODEL_ATTRIBUTION", True),
             slack_webhook_url=os.environ.get("SLACK_WEBHOOK_URL", "").strip(),
             discord_webhook_url=os.environ.get("DISCORD_WEBHOOK_URL", "").strip(),
             telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
             telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID", "").strip(),
             enable_audio=_get_bool("ENABLE_AUDIO", False),
             audio_dir=os.environ.get("AUDIO_DIR", "out").strip() or "out",
-            enable_top_stories=_get_bool("ENABLE_TOP_STORIES", True),
+            # Off by default: it duplicated The Pulse and broke the pyramid
+            # order. When re-enabled it now renders BELOW The Pulse.
+            enable_top_stories=_get_bool("ENABLE_TOP_STORIES", False),
             enable_images=_get_bool("ENABLE_IMAGES", True),
             top_stories_count=_get_int("TOP_STORIES_COUNT", 6),
+            cross_day_dedup=_get_bool("CROSS_DAY_DEDUP", True),
+            enable_link_check=_get_bool("ENABLE_LINK_CHECK", True),
         )

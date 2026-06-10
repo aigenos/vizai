@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from . import archive, audio, notifiers
 from .analyzer import build_digest, private_section_ids, private_sentinels
 from .config import Config
-from .emailer import render_html, send_email, subject_line
+from .emailer import footer_links, render_html, send_email, subject_line
 from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv, fetch_hf_papers
 
 # Load .env for local runs. It's a dev convenience only — in CI the environment
@@ -58,8 +58,15 @@ def run() -> int:
     # 2. Synthesize. `body` is the section-marked fragment (private sections
     # included); `html` is the full styled email.
     engine = f"{cfg.provider} ({cfg.model})"
+    if cfg.opportunity_model:
+        engine += f" + {cfg.opportunity_model}"
     body = build_digest(cfg, items, now)
-    html = render_html(body, now, engine=engine)
+    html = render_html(
+        body,
+        now,
+        engine=engine if cfg.show_model_attribution else "",
+        footer=footer_links(cfg, now),
+    )
 
     # Always save to disk in DRY_RUN so you can eyeball the result locally.
     if cfg.save_html or cfg.dry_run:
