@@ -34,14 +34,16 @@ body {
 .hero p { margin:0; font-size:15px; opacity:.92; }
 ul.issues { list-style:none; margin:24px 0 0; padding:0; }
 li.issue a {
-  display:flex; justify-content:space-between; align-items:center;
+  display:block;
   background:var(--surface); border:1px solid var(--border); border-radius:14px;
   padding:16px 20px; margin:12px 0; text-decoration:none; color:var(--text);
   box-shadow:var(--shadow); transition:transform .12s ease, border-color .12s ease;
 }
 li.issue a:hover { transform:translateY(-2px); border-color:var(--accent); }
+li.issue .row { display:flex; justify-content:space-between; align-items:center; }
 li.issue .date { font-weight:650; font-size:16px; }
-li.issue .go { color:var(--accent); font-weight:700; font-size:14px; }
+li.issue .go { color:var(--accent); font-weight:700; font-size:14px; white-space:nowrap; }
+li.issue .headline { color:var(--muted); font-size:14px; line-height:1.5; margin-top:6px; }
 .empty { color:var(--muted); margin-top:24px; }
 .foot { text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }
 .foot a { color:var(--accent); text-decoration:none; }
@@ -56,10 +58,11 @@ li.issue .go { color:var(--accent); font-weight:700; font-size:14px; }
   </div>
   
     <ul class="issues">
-    <li class="issue"><a href="digests/digest_20260610.html"><span class="date">Wednesday, June 10, 2026</span><span class="go">Read →</span></a></li>
+    <li class="issue"><a href="digests/digest_20260611.html"><div class="row"><span class="date">Thursday, June 11, 2026</span><span class="go">Read →</span></div><div class="headline">🎯 Anthropic has officially walked back its &quot;silent nerfing&quot; policy for the Claude Fable 5 (Mythos-class) model, committing to full transparency regarding future safeguard…</div></a></li>
   </ul>
   <div class="foot">
-    <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv.
+    <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv ·
+    <a href="feed.xml">RSS</a> · <a href="receipts.md">receipts</a>
   </div>
 </div>
 </body>
