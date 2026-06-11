@@ -25,6 +25,54 @@ import sys
 
 _DIGEST_RX = re.compile(r"digest_(\d{8})\.html$")
 
+# Shown only when no real issue exists yet (fresh fork, pre-first-run): a
+# representative sample rendered through the real email template, so the README
+# hero is never a broken image. Replaced by real-issue screenshots as soon as
+# the archive has content.
+_SAMPLE_BODY = """\
+<!--SECTION:pulse-->
+<h2>⚡ The Pulse — If You Only Read One Thing (90 sec read)</h2>
+<h3>🎯 Today's Game-Changer</h3>
+<p><strong><a href="https://example.com">Sample issue</a></strong> — this is a
+preview rendered before your first digest run. Each real issue opens with the
+single most important development of the day, source-linked, with one tight
+clause on why it matters more than anything else.</p>
+<h3>📍 In a Nutshell</h3>
+<ul>
+<li><strong>A model release</strong> — what changed for builders. <a href="https://example.com">source</a></li>
+<li><strong>A benchmark move</strong> — who moved, by how much. <a href="https://example.com">source</a></li>
+<li><strong>A fast-rising repo</strong> — why dev mindshare is shifting. <a href="https://example.com">source</a></li>
+<li><strong>A funding round</strong> — the bet it's buying. <a href="https://example.com">source</a></li>
+</ul>
+<!--SECTION:opp_teaser-->
+<h2>🚀 Opportunity of the Day (2 min read)</h2>
+<h3>The thing to build</h3>
+<ul>
+<li><strong>The gap:</strong> what's missing in the current stack.</li>
+<li><strong>Why now:</strong> what changed this week that makes it tractable.</li>
+<li><strong>Build as:</strong> OSS library / dev tool / SaaS — and why.</li>
+<li><strong>Already heating up:</strong> two independent, quantified signals.</li>
+<li><strong>First step this week:</strong> one concrete validation action.</li>
+</ul>
+<p><em>Run your first digest and this becomes a real, evidence-backed pick.</em></p>"""
+
+
+def _render_sample_digest() -> str:
+    """Build a sample issue through the real pipeline renderer and return its
+    temp-file path. Used only when the archive has no issues yet."""
+    import tempfile
+    from datetime import datetime, timezone
+
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from src.emailer import render_html
+
+    html = render_html(_SAMPLE_BODY, datetime.now(timezone.utc))
+    fd, path = tempfile.mkstemp(suffix=".html", prefix="daily_sample_")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print(f"no archived digest yet — rendering sample issue ({path})")
+    return path
+
 
 def find_latest_digest(digests_dir: str = "docs/digests") -> str | None:
     if not os.path.isdir(digests_dir):
@@ -75,9 +123,9 @@ def main() -> None:
     ap.add_argument("--height", type=int, default=1000)
     args = ap.parse_args()
 
-    digest = args.digest or find_latest_digest()
-    if not digest or not os.path.exists(digest):
-        sys.exit("No digest HTML found — run the pipeline once or pass a path.")
+    digest = args.digest or find_latest_digest() or _render_sample_digest()
+    if not os.path.exists(digest):
+        sys.exit(f"Digest HTML not found: {digest}")
     render(digest, args.out, args.width, args.height)
 
 
