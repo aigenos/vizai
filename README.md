@@ -1,24 +1,30 @@
-# dAIly — your personal AI analyst
+<div align="center">
 
-> **Reads everything in AI daily and tells you what to build.** One email,
-> ~90 seconds, every claim source-linked.
+<img src="docs/assets/banner.svg" alt="dAIly — your personal AI analyst. Reads everything in AI daily, tells you what to build." width="880">
+
+**Reads everything in AI daily and tells you what to build.**
+One email · ~90 seconds · every claim source-linked.
 
 [![Daily AI Digest](https://github.com/aigenos/dAIly/actions/workflows/daily-ai-digest.yml/badge.svg)](https://github.com/aigenos/dAIly/actions/workflows/daily-ai-digest.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Runs on GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows/daily-ai-digest.yml)
+[![~$0/month](https://img.shields.io/badge/cost-~%240%2Fmonth-4ade80.svg)](#run-your-own-in-5-minutes)
 
-<p align="center">
-  <a href="https://aigenos.github.io/dAIly"><strong>📬 Read today's issue (live)</strong></a> ·
-  <a href="https://aigenos.github.io/dAIly"><strong>✉️ Subscribe</strong></a> ·
-  <a href="#run-your-own-in-5-minutes"><strong>🚀 Run your own in 5 min</strong></a>
-</p>
+<h3>
+  <a href="https://aigenos.github.io/dAIly">📬 Read today's issue (live)</a> &nbsp;·&nbsp;
+  <a href="https://aigenos.github.io/dAIly#subscribe">✉️ Subscribe</a> &nbsp;·&nbsp;
+  <a href="#run-your-own-in-5-minutes">🚀 Run your own in 5 min</a>
+</h3>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-  <img alt="dAIly — a daily AI intelligence briefing, light and dark themed" src="docs/assets/hero-light.png" width="720">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
+  <img alt="A dAIly issue: The Pulse 90-second summary, then the Opportunity of the Day" src="docs/assets/hero-light.svg" width="760">
 </picture>
 
-*(Screenshots regenerate weekly from the live archive — what you see is what ships.)*
+*What lands in your inbox, light and dark — [see today's real issue live](https://aigenos.github.io/dAIly).*
+
+</div>
 
 ## What makes this different
 
