@@ -1,9 +1,11 @@
 """Public digest archive for GitHub Pages.
 
-Writes each day's digest to ``<archive_dir>/digests/digest_YYYYMMDD.html`` and
-regenerates ``<archive_dir>/index.html`` listing every past issue, so people can
-read the output before cloning — the single biggest driver of stars for a digest
-tool.
+Writes each day's digest to ``<archive_dir>/digests/digest_YYYYMMDD.html``,
+regenerates ``<archive_dir>/index.html`` listing every past issue (with each
+issue's Game-Changer headline as preview text), an Atom feed
+(``<archive_dir>/feed.xml``) so people can follow without email, and a receipts
+log (``<archive_dir>/receipts.md``) recording every Opportunity of the Day —
+the "my agent suggested X before Y launched" evidence base.
 
 SAFETY: private sections (e.g. the Opportunity Map) are stripped here BEFORE
 anything is written, using the ``<!--SECTION:id-->`` markers the model emits.
@@ -16,9 +18,9 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
-from .emailer import render_html, subscribe_cta
+from .emailer import footer_links, render_html, subscribe_cta
 
 log = logging.getLogger("aigenos.archive")
 
@@ -67,6 +69,34 @@ def _list_issues(digests_dir: str) -> list[tuple[str, datetime]]:
     return issues
 
 
+_GAMECHANGER_RX = re.compile(
+    r"Game-Changer.*?</h3>\s*<p[^>]*>(.*?)</p>", flags=re.DOTALL | re.IGNORECASE
+)
+
+
+def _strip_tags(html: str) -> str:
+    text = re.sub(r"<[^>]+>", "", html)
+    text = re.sub(r"&amp;", "&", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def issue_headline(issue_path: str, max_len: int = 170) -> str:
+    """The issue's Game-Changer first sentence(s) — used as preview text on the
+    index and in the Atom feed. Fail-open: any problem returns ''."""
+    try:
+        with open(issue_path, encoding="utf-8") as fh:
+            html = fh.read(400_000)
+        m = _GAMECHANGER_RX.search(html)
+        if not m:
+            return ""
+        text = _strip_tags(m.group(1))
+        if len(text) > max_len:
+            text = text[: max_len].rsplit(" ", 1)[0] + "…"
+        return text
+    except OSError:
+        return ""
+
+
 _INDEX_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="en">
@@ -104,14 +134,16 @@ body {{
 .hero p {{ margin:0; font-size:15px; opacity:.92; }}
 ul.issues {{ list-style:none; margin:24px 0 0; padding:0; }}
 li.issue a {{
-  display:flex; justify-content:space-between; align-items:center;
+  display:block;
   background:var(--surface); border:1px solid var(--border); border-radius:14px;
   padding:16px 20px; margin:12px 0; text-decoration:none; color:var(--text);
   box-shadow:var(--shadow); transition:transform .12s ease, border-color .12s ease;
 }}
 li.issue a:hover {{ transform:translateY(-2px); border-color:var(--accent); }}
+li.issue .row {{ display:flex; justify-content:space-between; align-items:center; }}
 li.issue .date {{ font-weight:650; font-size:16px; }}
-li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; }}
+li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; white-space:nowrap; }}
+li.issue .headline {{ color:var(--muted); font-size:14px; line-height:1.5; margin-top:6px; }}
 .empty {{ color:var(--muted); margin-top:24px; }}
 .foot {{ text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }}
 .foot a {{ color:var(--accent); text-decoration:none; }}
@@ -127,7 +159,8 @@ li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; }}
   {subscribe}
   {body}
   <div class="foot">
-    <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv.
+    <strong>dAIly</strong> by <a href="https://github.com/aigenos">aigenos</a> · curated from frontier labs, newsletters, infra, community &amp; arXiv ·
+    <a href="feed.xml">RSS</a> · <a href="receipts.md">receipts</a>
   </div>
 </div>
 </body>
@@ -137,11 +170,14 @@ li.issue .go {{ color:var(--accent); font-weight:700; font-size:14px; }}
 def _render_subscribe(cfg) -> str:
     """One-click subscribe box for the landing page.
 
-    - If SUBSCRIBE_FORM_ACTION is set (e.g. a Buttondown embed-subscribe URL),
-      render a real one-field POST form — works on a static site, no backend.
+    - If SUBSCRIBE_EMBED_HTML is set (a provider's form snippet — Buttondown,
+      Beehiiv, …), inject it verbatim inside the card. Provider-agnostic.
+    - Else if SUBSCRIBE_FORM_ACTION is set (e.g. a Buttondown embed-subscribe
+      URL), render a one-field POST form — works on a static site, no backend.
     - Else if SUBSCRIBE_URL is set, render a button linking to it.
     - Else render nothing.
     """
+    embed = getattr(cfg, "subscribe_embed_html", "")
     action = getattr(cfg, "subscribe_form_action", "")
     url = getattr(cfg, "subscribe_url", "")
     card_open = (
@@ -158,6 +194,8 @@ def _render_subscribe(cfg) -> str:
         'background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;cursor:pointer;'
         'text-decoration:none;display:inline-block;'
     )
+    if embed:
+        return card_open + embed + "</div>"
     if action:
         form = (
             f'<form action="{action}" method="post" target="popupwindow" '
@@ -173,15 +211,24 @@ def _render_subscribe(cfg) -> str:
     return ""
 
 
-def _render_index(cfg, issues: list[tuple[str, datetime]]) -> str:
+def _render_index(cfg, issues: list[tuple[str, datetime, str]]) -> str:
     if issues:
-        rows = "\n".join(
-            f'    <li class="issue"><a href="digests/{name}">'
-            f'<span class="date">{d.strftime("%A, %B %-d, %Y") if os.name != "nt" else d.strftime("%A, %B %d, %Y")}</span>'
-            f'<span class="go">Read →</span></a></li>'
-            for name, d in issues
-        )
-        body = f'  <ul class="issues">\n{rows}\n  </ul>'
+        rows: list[str] = []
+        for name, d, headline in issues:
+            date_label = (
+                d.strftime("%A, %B %-d, %Y")
+                if os.name != "nt"
+                else d.strftime("%A, %B %d, %Y")
+            )
+            preview = (
+                f'<div class="headline">🎯 {_esc(headline)}</div>' if headline else ""
+            )
+            rows.append(
+                f'    <li class="issue"><a href="digests/{name}">'
+                f'<div class="row"><span class="date">{date_label}</span>'
+                f'<span class="go">Read →</span></div>{preview}</a></li>'
+            )
+        body = '  <ul class="issues">\n' + "\n".join(rows) + "\n  </ul>"
     else:
         body = '  <p class="empty">No issues published yet — check back tomorrow.</p>'
     return _INDEX_TEMPLATE.format(
@@ -190,6 +237,97 @@ def _render_index(cfg, issues: list[tuple[str, datetime]]) -> str:
         subscribe=_render_subscribe(cfg),
         body=body,
     )
+
+
+def _esc(s: str) -> str:
+    return (
+        (s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _render_feed(cfg, issues: list[tuple[str, datetime, str]]) -> str:
+    """Atom feed of the archive — follow the digest without email. Requires
+    SITE_URL (Atom links must be absolute)."""
+    site = cfg.site_url
+    updated = (
+        issues[0][1].replace(tzinfo=timezone.utc) if issues
+        else datetime.now(timezone.utc)
+    )
+    entries: list[str] = []
+    for name, d, headline in issues:
+        url = f"{site}/digests/{name}"
+        title = f"dAIly — {d.strftime('%B %d, %Y')}"
+        if headline:
+            title += f": {headline}"
+        iso = d.replace(tzinfo=timezone.utc).isoformat()
+        entries.append(
+            "  <entry>\n"
+            f"    <title>{_esc(title)}</title>\n"
+            f'    <link href="{_esc(url)}"/>\n'
+            f"    <id>{_esc(url)}</id>\n"
+            f"    <updated>{iso}</updated>\n"
+            f"    <summary>{_esc(headline) or 'Daily AI intelligence briefing.'}</summary>\n"
+            "  </entry>"
+        )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<feed xmlns="http://www.w3.org/2005/Atom">\n'
+        f"  <title>{_esc(cfg.site_title)}</title>\n"
+        f'  <link href="{_esc(site)}/"/>\n'
+        f'  <link rel="self" href="{_esc(site)}/feed.xml"/>\n'
+        f"  <id>{_esc(site)}/</id>\n"
+        f"  <updated>{updated.isoformat()}</updated>\n"
+        + "\n".join(entries)
+        + "\n</feed>\n"
+    )
+
+
+_OPP_TITLE_RX = re.compile(
+    r"<!--SECTION:opp_teaser-->.*?<h3[^>]*>(.*?)</h3>", flags=re.DOTALL
+)
+
+
+def append_receipt(cfg, public_fragment: str, now: datetime) -> None:
+    """Append today's Opportunity of the Day to <archive_dir>/receipts.md — the
+    'called it' log that builds the agent's track record over time. Idempotent
+    per day; fail-open (a receipts problem never blocks publishing)."""
+    try:
+        m = _OPP_TITLE_RX.search(public_fragment)
+        if not m:
+            log.warning("receipts: no Opportunity of the Day title found — skipped")
+            return
+        title = _strip_tags(m.group(1))
+        if not title:
+            return
+        stamp = now.strftime("%Y-%m-%d")
+        issue_name = f"digest_{now.strftime('%Y%m%d')}.html"
+        link = (
+            f"{cfg.site_url}/digests/{issue_name}" if cfg.site_url
+            else f"digests/{issue_name}"
+        )
+        path = os.path.join(cfg.archive_dir, "receipts.md")
+        existing = ""
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                existing = fh.read()
+        if issue_name in existing:
+            return  # already logged today (re-run)
+        if not existing:
+            existing = (
+                "# Receipts — Opportunity of the Day, every day\n\n"
+                "What this agent said to build, and when. When one of these "
+                "ships as a product or paper later, this log is the proof it "
+                "was called here first.\n\n"
+            )
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(existing.rstrip() + f"\n- **{stamp}** — [{title}]({link})\n")
+        log.info("receipts: logged %r", title)
+    except Exception as exc:  # noqa: BLE001 — receipts must never block publishing
+        log.warning("receipts append failed: %s", exc)
 
 
 def publish(
@@ -219,9 +357,17 @@ def publish(
         )
 
     # Public archive gets the subscribe CTA (the freemium upsell); the email does
-    # not need it. No-op when SUBSCRIBE_URL is unset.
-    cta = subscribe_cta(getattr(cfg, "subscribe_url", ""))
-    public_html = render_html(public_fragment, now, engine=engine, cta=cta)
+    # not need it. No-op when SUBSCRIBE_URL / SUBSCRIBE_EMBED_HTML are unset.
+    cta = subscribe_cta(
+        getattr(cfg, "subscribe_url", ""), getattr(cfg, "subscribe_embed_html", "")
+    )
+    public_html = render_html(
+        public_fragment,
+        now,
+        engine=engine if getattr(cfg, "show_model_attribution", True) else "",
+        cta=cta,
+        footer=footer_links(cfg, now, include_unsubscribe=False),
+    )
 
     digests_dir = os.path.join(cfg.archive_dir, "digests")
     os.makedirs(digests_dir, exist_ok=True)
@@ -231,11 +377,24 @@ def publish(
     with open(issue_path, "w", encoding="utf-8") as fh:
         fh.write(public_html)
 
-    # Regenerate the index over all issues now on disk.
-    index_html = _render_index(cfg, _list_issues(digests_dir))
+    # Regenerate the index (and Atom feed) over all issues now on disk, each
+    # previewed by its Game-Changer headline.
+    issues = [
+        (name, d, issue_headline(os.path.join(digests_dir, name)))
+        for name, d in _list_issues(digests_dir)
+    ]
+    index_html = _render_index(cfg, issues)
     index_path = os.path.join(cfg.archive_dir, "index.html")
     with open(index_path, "w", encoding="utf-8") as fh:
         fh.write(index_html)
+    if cfg.site_url:
+        with open(os.path.join(cfg.archive_dir, "feed.xml"), "w", encoding="utf-8") as fh:
+            fh.write(_render_feed(cfg, issues))
+    else:
+        log.info("feed.xml skipped — set SITE_URL to publish an Atom feed")
+
+    # The "called it" log.
+    append_receipt(cfg, public_fragment, now)
 
     log.info("archived public issue → %s (index regenerated)", issue_path)
     if private_ids or sentinels:

@@ -1,0 +1,8 @@
+# Dev/CI-only extras — NOT needed to run the daily digest.
+-r requirements.txt
+
+pytest>=8.0.0            # test suite: python -m pytest -q tests/
+
+# Screenshot pipeline (scripts/make_screenshots.py). After installing, run:
+#   python -m playwright install chromium
+playwright>=1.45.0

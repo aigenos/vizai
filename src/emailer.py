@@ -4,10 +4,11 @@ Modern, theme-aware HTML built on a few principles:
 
 - ``<meta name="color-scheme">`` + ``<meta name="supported-color-schemes">``
   signal we render in both light and dark.
-- A ``<style>`` block defines CSS custom properties (light defaults), with a
-  ``@media (prefers-color-scheme: dark)`` block that re-binds the same tokens
-  to dark values. Clients that support ``prefers-color-scheme`` (Apple Mail,
-  iOS Mail, Gmail web, Outlook.com, Yahoo) get full theme switching.
+- A ``<style>`` block carries a ``@media (prefers-color-scheme: dark)`` rule
+  using LITERAL color values (no ``var()`` — Gmail and Outlook strip custom
+  properties even when they keep the media query). Clients that support
+  ``prefers-color-scheme`` (Apple Mail, iOS Mail, Gmail web, Outlook.com,
+  Yahoo) get full theme switching.
 - Every tag also carries inline light-theme styles as a fallback for clients
   that strip ``<style>`` (notably Outlook desktop). Those readers get a clean
   light-mode render — Outlook handles its own dark-mode inversion.
@@ -39,57 +40,34 @@ _THEME_STYLES = """
 :root {
   color-scheme: light dark;
   supported-color-schemes: light dark;
-  --bg: #f3f4f8;
-  --surface: #ffffff;
-  --surface-elev: #ffffff;
-  --text: #14142a;
-  --text-soft: #3a3a55;
-  --muted: #6b6b85;
-  --accent: #6366f1;
-  --accent-2: #a855f7;
-  --accent-soft: rgba(99, 102, 241, 0.10);
-  --border: #e8e6f5;
-  --code-bg: #faf9ff;
-  --shadow: 0 1px 2px rgba(20, 20, 42, 0.04), 0 8px 24px rgba(20, 20, 42, 0.06);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0a14;
-    --surface: #14141f;
-    --surface-elev: #1a1a26;
-    --text: #ececf5;
-    --text-soft: #c8c8d8;
-    --muted: #8e8ea8;
-    --accent: #8b8cff;
-    --accent-2: #c084fc;
-    --accent-soft: rgba(139, 140, 255, 0.14);
-    --border: #2a2a3d;
-    --code-bg: #1a1a26;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
-  }
-  body, .aigenos-bg { background: var(--bg) !important; }
-  .aigenos-card { background: var(--surface) !important; box-shadow: var(--shadow) !important; }
-  .aigenos-text { color: var(--text) !important; }
-  .aigenos-muted { color: var(--muted) !important; }
-  h2.aigenos-h2 { color: var(--accent) !important; border-color: var(--border) !important; }
-  h3.aigenos-h3 { color: var(--text) !important; }
-  p.aigenos-p, li.aigenos-li { color: var(--text-soft) !important; }
-  a.aigenos-a { color: var(--accent) !important; }
-  strong.aigenos-strong { color: var(--text) !important; }
+  /* Literal colors only — Gmail/Outlook strip CSS custom properties but keep
+     the media query, which used to leave dark-mode readers unstyled. */
+  body, .aigenos-bg { background: #0a0a14 !important; }
+  .aigenos-card { background: #14141f !important; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35) !important; }
+  .aigenos-text { color: #ececf5 !important; }
+  .aigenos-muted { color: #8e8ea8 !important; }
+  h2.aigenos-h2 { color: #8b8cff !important; border-color: #2a2a3d !important; }
+  h3.aigenos-h3 { color: #ececf5 !important; }
+  p.aigenos-p, li.aigenos-li { color: #c8c8d8 !important; }
+  a.aigenos-a { color: #8b8cff !important; }
+  strong.aigenos-strong { color: #ececf5 !important; }
   blockquote.aigenos-bq {
-    background: var(--code-bg) !important;
-    color: var(--text-soft) !important;
-    border-color: var(--accent) !important;
+    background: #1a1a26 !important;
+    color: #c8c8d8 !important;
+    border-color: #8b8cff !important;
   }
   .aigenos-chip {
-    background: var(--accent-soft) !important;
-    color: var(--accent) !important;
+    background: rgba(139, 140, 255, 0.14) !important;
+    color: #8b8cff !important;
   }
-  .aigenos-footer { color: var(--muted) !important; }
+  .aigenos-footer { color: #8e8ea8 !important; }
+  .aigenos-footer a { color: #8b8cff !important; }
   .aigenos-hero-sub { color: rgba(255,255,255,0.85) !important; }
-  .aigenos-src-row { background: var(--surface-elev) !important; border-color: var(--border) !important; }
-  a.aigenos-src-title { color: var(--text) !important; }
-  .aigenos-src-meta { color: var(--muted) !important; }
+  .aigenos-src-row { background: #1a1a26 !important; border-color: #2a2a3d !important; }
+  a.aigenos-src-title { color: #ececf5 !important; }
+  .aigenos-src-meta { color: #8e8ea8 !important; }
 }
 @media (max-width: 600px) {
   .aigenos-shell { padding: 16px 10px !important; }
@@ -140,8 +118,7 @@ _TEMPLATE = """\
 
   <!-- Footer -->
   <div class="aigenos-footer" style="text-align:center;color:#6b6b85;font-size:12px;padding:22px 8px 8px;line-height:1.6;">
-    Curated by <strong style="color:#6366f1;font-weight:700;">aigenos</strong> from frontier labs, AI-engineer newsletters, infra vendors, community feeds &amp; arXiv<br>
-    <span style="opacity:.78;">{engine}</span>
+    Curated by <strong style="color:#6366f1;font-weight:700;">aigenos</strong> from frontier labs, AI-engineer newsletters, infra vendors, community feeds &amp; arXiv{engine}{footer_links}
   </div>
 
 </div>
@@ -254,11 +231,43 @@ def _add_source_favicons(html: str) -> str:
     return re.sub(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>', repl, html)
 
 
-def render_html(body_fragment: str, now: datetime, engine: str = "", cta: str = "") -> str:
+def footer_links(cfg, now: datetime, include_unsubscribe: bool = True) -> str:
+    """The footer link row: read-online (archive) · subscribe · unsubscribe.
+    Each link renders only when its env var is configured. The unsubscribe slot
+    accepts a URL or a sending-platform merge tag (e.g. Resend's
+    ``{{{{RESEND_UNSUBSCRIBE_URL}}}}``) — required before emailing strangers."""
+    a = 'style="color:#6366f1;text-decoration:none;font-weight:600;"'
+    links: list[str] = []
+    site_url = getattr(cfg, "site_url", "")
+    if site_url:
+        issue = f"{site_url}/digests/digest_{now.strftime('%Y%m%d')}.html"
+        links.append(f'<a {a} href="{issue}">Read this issue online</a>')
+    subscribe_url = getattr(cfg, "subscribe_url", "")
+    if subscribe_url:
+        links.append(f'<a {a} href="{subscribe_url}">Subscribe</a>')
+    unsubscribe_url = getattr(cfg, "unsubscribe_url", "")
+    if include_unsubscribe and unsubscribe_url:
+        links.append(f'<a {a} href="{unsubscribe_url}">Unsubscribe</a>')
+    if not links:
+        return ""
+    return "<br>" + " &nbsp;·&nbsp; ".join(links)
+
+
+def render_html(
+    body_fragment: str,
+    now: datetime,
+    engine: str = "",
+    cta: str = "",
+    footer: str = "",
+) -> str:
     """Render the full email. `cta` is an optional pre-built HTML block (e.g. a
     subscribe call-to-action) injected after the body — it is NOT run through the
-    tag-styler, so it keeps its own styling intact."""
-    engine_label = f"powered by {engine}." if engine else "powered by AI."
+    tag-styler, so it keeps its own styling intact. `footer` is an optional
+    pre-built link row (see ``footer_links``). Pass `engine=""` to omit the
+    model-attribution line (SHOW_MODEL_ATTRIBUTION=false)."""
+    engine_label = (
+        f'<br><span style="opacity:.78;">powered by {engine}.</span>' if engine else ""
+    )
     styled_body = _inline_styles(body_fragment)
     styled_body = _enhance_read_time(styled_body)
     styled_body = _add_source_favicons(styled_body)
@@ -269,6 +278,7 @@ def render_html(body_fragment: str, now: datetime, engine: str = "", cta: str = 
         body=styled_body,
         cta=cta,
         engine=engine_label,
+        footer_links=footer,
         theme=_THEME_STYLES,
     )
 
@@ -277,11 +287,18 @@ def subject_line(now: datetime) -> str:
     return f"dAIly — AI Digest, {now.strftime('%b %d, %Y')}"
 
 
-def subscribe_cta(url: str) -> str:
+def subscribe_cta(url: str, embed_html: str = "") -> str:
     """A self-styled subscribe call-to-action (white-on-gradient, reads fine in
-    both light and dark). Returns '' if no url so it's a no-op."""
-    if not url:
+    both light and dark). If `embed_html` is set (SUBSCRIBE_EMBED_HTML — e.g. a
+    Buttondown/Beehiiv form snippet), it is injected in place of the link button,
+    keeping the CTA provider-agnostic. Returns '' if neither is set."""
+    if not url and not embed_html:
         return ""
+    action = embed_html or (
+        f'<a href="{url}" style="display:inline-block;background:#ffffff;color:#4f46e5;'
+        'font-weight:700;text-decoration:none;padding:11px 26px;border-radius:999px;font-size:15px;">'
+        'Subscribe →</a>'
+    )
     return (
         '<div style="margin:28px 0 8px;padding:22px 24px;border-radius:16px;'
         'background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-align:center;">'
@@ -289,9 +306,7 @@ def subscribe_cta(url: str) -> str:
         '<div style="font-size:14px;opacity:.92;margin:8px 0 14px;line-height:1.5;">'
         'Today’s Opportunity of the Day is just 1 of 5–7. Get the complete daily map — '
         'the gap, why-now, wedge &amp; moat, and a validated first step for every bet.</div>'
-        f'<a href="{url}" style="display:inline-block;background:#ffffff;color:#4f46e5;'
-        'font-weight:700;text-decoration:none;padding:11px 26px;border-radius:999px;font-size:15px;">'
-        'Subscribe →</a></div>'
+        f'{action}</div>'
     )
 
 

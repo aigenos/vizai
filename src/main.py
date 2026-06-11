@@ -10,10 +10,15 @@ import logging
 import sys
 from datetime import datetime, timezone
 
-from . import archive, audio, notifiers
-from .analyzer import build_digest, private_section_ids, private_sentinels
+from . import archive, audio, linkcheck, notifiers, state
+from .analyzer import (
+    build_digest,
+    private_section_ids,
+    private_sentinels,
+    select_for_prompt,
+)
 from .config import Config
-from .emailer import render_html, send_email, subject_line
+from .emailer import footer_links, render_html, send_email, subject_line
 from .fetchers import dedupe, fetch_all_feeds, fetch_arxiv, fetch_hf_papers
 
 # Load .env for local runs. It's a dev convenience only — in CI the environment
@@ -51,6 +56,13 @@ def run() -> int:
         len(hf_items),
     )
 
+    # 1b. Cross-day dedup: drop items a previous digest already covered.
+    # Fail-open — a missing/corrupt state file just means nothing is filtered.
+    seen: dict[str, float] = {}
+    if cfg.cross_day_dedup:
+        seen = state.load(state.state_path(cfg.archive_dir))
+        items = state.filter_new(items, seen)
+
     if not items and not cfg.enable_web_search:
         log.error("no items fetched and web search disabled — aborting")
         return 1
@@ -58,8 +70,21 @@ def run() -> int:
     # 2. Synthesize. `body` is the section-marked fragment (private sections
     # included); `html` is the full styled email.
     engine = f"{cfg.provider} ({cfg.model})"
+    if cfg.opportunity_model:
+        engine += f" + {cfg.opportunity_model}"
     body = build_digest(cfg, items, now)
-    html = render_html(body, now, engine=engine)
+
+    # 2b. Verify links before anything ships. Fail-open: network trouble only
+    # means links go out unchecked, exactly as before.
+    if cfg.enable_link_check:
+        body = linkcheck.verify_links(body)
+
+    html = render_html(
+        body,
+        now,
+        engine=engine if cfg.show_model_attribution else "",
+        footer=footer_links(cfg, now),
+    )
 
     # Always save to disk in DRY_RUN so you can eyeball the result locally.
     if cfg.save_html or cfg.dry_run:
@@ -87,6 +112,14 @@ def run() -> int:
         return 0
     send_email(cfg, subject_line(now), html)
     notifiers.notify_all(cfg, body, now)
+
+    # 5. Persist cross-day dedup state — only after a successful real delivery,
+    # and only for the items the model actually saw (the prompt selection).
+    if cfg.cross_day_dedup:
+        state.mark_seen(select_for_prompt(items), seen, now)
+        state.save(
+            state.state_path(cfg.archive_dir), seen, now, cfg.lookback_days * 2
+        )
     log.info("done.")
     return 0
 

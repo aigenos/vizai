@@ -61,7 +61,13 @@ without a link is a bug. The reader uses these links to verify truth.
 
 Curate ruthlessly. Deduplicate. Rank by importance to the reader's goals — \
 prioritize signal that either (a) changes how the reader should build AI today, \
-or (b) reveals a gap that a small team could exploit."""
+or (b) reveals a gap that a small team could exploit.
+
+ONE ITEM, ONE SECTION. Each story/paper/launch may appear in AT MOST ONE \
+section of the briefing. The only exception: the Game-Changer may be referenced \
+ONCE more in Stack Signals, and only if you add a genuinely new angle there \
+(benchmark numbers, adoption/velocity data) — never a restated summary. Before \
+emitting, scan your draft for any item mentioned twice and cut the duplicate."""
 
 # ── Briefing sections ─────────────────────────────────────────────────────────
 # Each section is (id, order, instructions). Public sections live here. Private
@@ -99,7 +105,12 @@ followed by a real <a href="..."> to its primary source. For candidate items, \
 use the URL printed under that item VERBATIM. Example of the required style:
   <li><strong><a href="https://arxiv.org/abs/2606.07454">Code2LoRA</a></strong> \
 — hypernetwork-generated LoRA adapters for code models.</li>
-A claim with no link will be treated as unverified and is a defect."""
+A claim with no link will be treated as unverified and is a defect.
+
+LINK HYGIENE. Link each item EXACTLY ONCE per bullet: hyperlink the item's \
+title/name itself. Never append a trailing "<a>source</a>" / "<a>link</a>" that \
+points to the same URL as the title link — that is a defect. Always use https:// \
+URLs (arXiv links in particular must be https://arxiv.org/...)."""
 
 _INSTRUCTIONS_FOOTER = """\
 End with a one-line <p><em>…</em></p> sign-off. Output ONLY the HTML fragment. \
@@ -152,6 +163,13 @@ none, mark <em>(speculative — no validation signal yet)</em> honestly.</li>
 <li><strong>First step this week:</strong> one concrete action to validate or
 prototype it in the next 7 days.</li>
 </ul>
+EVIDENCE BAR — the opportunity must rest on AT LEAST TWO INDEPENDENT signals
+from unrelated sources (e.g. a paper + a product launch, or a benchmark move +
+a funded startup). A single Reddit/HN post is NOT sufficient evidence for "Why
+now" or "Already heating up" — if you only have one signal, pick a different
+opportunity. QUANTIFY community interest wherever possible ("1.2k upvotes on
+r/LocalLLaMA", "#1 on HF Daily Papers today", "4.3k stars in 48h") — vague
+claims like "high community interest" are a defect.
 Make this the strongest, most shareable pick of the day — the single best thing
 to build right now.""")
 
@@ -310,6 +328,12 @@ def _select_for_prompt(items: list[Item]) -> list[Item]:
     return selected
 
 
+def select_for_prompt(items: list[Item]) -> list[Item]:
+    """Public wrapper — main.py uses it to mark exactly the items the model saw
+    as 'covered' in the cross-day dedup state."""
+    return _select_for_prompt(items)
+
+
 def _format_items(items: list[Item]) -> str:
     by_cat: dict[str, list[Item]] = {
         "lab": [], "newsletter": [], "infra": [], "community": [], "research": [],
@@ -377,15 +401,148 @@ def build_digest(cfg: Config, items: list[Item], now: datetime) -> str:
     html, added = _backfill_links(html, selected)
     log.info("digest generated: %d chars (+%d source links backfilled)", len(html), added)
 
-    # Prepend the deterministic Top Stories strip — guaranteed real links +
-    # og:image thumbnails + priority order, independent of what the model emitted.
+    # Optional second pass: re-synthesize the Opportunity sections with a
+    # stronger model (OPPORTUNITY_MODEL). Unset = single pass, as before.
+    if cfg.opportunity_model and cfg.opportunity_model != cfg.model:
+        html = _regenerate_opportunities(cfg, html, selected, now)
+
+    html = postprocess(html)
+
+    # Optional deterministic Top Stories strip (off by default — it duplicated
+    # The Pulse). When enabled it renders BELOW The Pulse so the pyramid still
+    # opens with the 90-second summary.
     if cfg.enable_top_stories:
         from . import enrich
         top = enrich.build_top_stories(
             selected, now, cfg.top_stories_count, cfg.enable_images
         )
         if top:
-            html = top + "\n" + html
+            html = _insert_after_section(html, "pulse", top)
+    return html
+
+
+def _opportunity_section_ids() -> list[str]:
+    """Sections the (optional) stronger OPPORTUNITY_MODEL re-synthesizes: the
+    public Opportunity of the Day plus any private opportunity sections."""
+    return ["opp_teaser", *private_section_ids()]
+
+
+def _regenerate_opportunities(
+    cfg: Config, html: str, items: list[Item], now: datetime
+) -> str:
+    """Two-pass synthesis: redo just the Opportunity sections with a stronger
+    model, splicing the result back over the first-pass sections by marker.
+    Fail-open — any error keeps the first-pass content."""
+    from dataclasses import replace
+
+    ids = [sid for sid in _opportunity_section_ids() if f"<!--SECTION:{sid}-->" in html]
+    if not ids:
+        log.warning("opportunity 2nd pass skipped: no opportunity section markers found")
+        return html
+
+    blocks = {
+        sid: block
+        for sid, order, block in sorted(
+            _PUBLIC_SECTIONS + _load_private_sections(), key=lambda s: s[1]
+        )
+        if sid in ids
+    }
+    instructions = (
+        _INSTRUCTIONS_HEADER.format(n=len(blocks))
+        + "\n\n" + "\n\n".join(blocks.values())
+        + "\n\nOutput ONLY these sections (marker + <h2> + content each), nothing "
+        "else. No markdown code fences, no commentary before or after."
+    )
+    context = (
+        f"Date: {now.strftime('%A, %B %d, %Y')} (UTC).\n"
+        f"You are re-synthesizing ONLY the opportunity section(s) of today's "
+        f"briefing with a stronger model. The rest of the briefing (already "
+        f"final) is below for context — do NOT repeat its items verbatim; "
+        f"build on them.\n\n"
+        f"TODAY'S BRIEFING (final, for context):\n{html}\n\n"
+        f"CANDIDATE ITEMS:\n\n{_format_items(items)}\n\n"
+        f"{instructions}"
+    )
+    try:
+        strong_cfg = replace(cfg, model=cfg.opportunity_model)
+        log.info("opportunity 2nd pass via %s (%s)", cfg.provider, cfg.opportunity_model)
+        raw = _strip_code_fence(providers.generate(strong_cfg, SYSTEM_PROMPT, context))
+        raw, _ = _backfill_links(raw, items)
+        replaced = 0
+        for sid in ids:
+            new_block = _extract_section(raw, sid)
+            if new_block:
+                html = _replace_section(html, sid, new_block)
+                replaced += 1
+        log.info("opportunity 2nd pass: replaced %d/%d section(s)", replaced, len(ids))
+    except Exception as exc:  # noqa: BLE001 — keep the first-pass digest
+        log.warning("opportunity 2nd pass failed; keeping first pass: %s", exc)
+    return html
+
+
+def _section_rx(sid: str) -> re.Pattern:
+    return re.compile(
+        r"<!--SECTION:" + re.escape(sid) + r"-->.*?(?=\s*<!--SECTION:|\Z)",
+        flags=re.DOTALL,
+    )
+
+
+def _extract_section(html: str, sid: str) -> str:
+    m = _section_rx(sid).search(html)
+    return m.group(0).strip() if m else ""
+
+
+def _replace_section(html: str, sid: str, new_block: str) -> str:
+    return _section_rx(sid).sub(lambda _: new_block + "\n", html, count=1)
+
+
+def _insert_after_section(html: str, sid: str, block: str) -> str:
+    """Insert `block` right after section `sid` ends (or append if not found)."""
+    m = _section_rx(sid).search(html)
+    if not m:
+        return html + "\n" + block
+    end = m.end()
+    return html[:end] + "\n" + block + "\n" + html[end:]
+
+
+# ── Deterministic output hygiene (runs on every digest) ───────────────────────
+
+# A trailing anchor that just restates the previous link: same href, generic
+# label ("source", "link", "[source]", "read more", a bare domain, "→", …),
+# separated only by whitespace/punctuation. The prompt forbids these; this pass
+# guarantees it.
+_REDUNDANT_SRC_RX = re.compile(
+    r'(<a\b[^>]*\bhref="([^"]+)"[^>]*>(?:(?!</a>).)*?</a>)'   # the real link
+    r'((?:(?!<a\b|</li>|</p>|<h\d).)*?)'                       # prose, no other anchor
+    r'[\s—–·,]*[\(\[]?\s*'                                     # separator / bracket
+    r'<a\b[^>]*\bhref="\2"[^>]*>\s*'                           # same-href anchor
+    r'(?:source|link|read more|details|→|↗|[a-z0-9.-]+\.[a-z]{2,})'
+    r'\s*</a>\s*[\)\]]?',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+
+def strip_redundant_source_links(html: str) -> str:
+    """Drop a trailing "source"-style link whose href equals the preceding
+    inline link's href (the title is already hyperlinked)."""
+    prev = None
+    while prev != html:
+        prev = html
+        html = _REDUNDANT_SRC_RX.sub(r"\1\3", html)
+    return html
+
+
+def normalize_arxiv_links(html: str) -> str:
+    """arXiv serves http:// URLs in its API; emails must not mix schemes."""
+    return re.sub(
+        r'http://(export\.)?arxiv\.org', r"https://\1arxiv.org", html
+    )
+
+
+def postprocess(html: str) -> str:
+    """Deterministic hygiene passes applied to every generated digest."""
+    html = normalize_arxiv_links(html)
+    html = strip_redundant_source_links(html)
     return html
 
 
