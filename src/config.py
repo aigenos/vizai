@@ -74,6 +74,12 @@ class Config:
     discord_webhook_url: str
     telegram_bot_token: str
     telegram_chat_id: str
+    # Buttondown: send each issue to your newsletter subscribers (the public
+    # version — private sections are stripped first). "teaser" sends The Pulse
+    # + Opportunity as clean markdown with a link to the full issue (renders
+    # reliably); "full" sends the whole public HTML fragment.
+    buttondown_api_key: str
+    buttondown_mode: str
     # Audio / TTS version of The Pulse.
     enable_audio: bool
     audio_dir: str
@@ -156,6 +162,10 @@ class Config:
             subscribe_embed_html=os.environ.get("SUBSCRIBE_EMBED_HTML", "").strip(),
             unsubscribe_url=os.environ.get("UNSUBSCRIBE_URL", "").strip(),
             show_model_attribution=_get_bool("SHOW_MODEL_ATTRIBUTION", True),
+            buttondown_api_key=os.environ.get("BUTTONDOWN_API_KEY", "").strip(),
+            buttondown_mode=(
+                os.environ.get("BUTTONDOWN_MODE", "").strip().lower() or "teaser"
+            ),
             slack_webhook_url=os.environ.get("SLACK_WEBHOOK_URL", "").strip(),
             discord_webhook_url=os.environ.get("DISCORD_WEBHOOK_URL", "").strip(),
             telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),

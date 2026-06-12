@@ -123,6 +123,29 @@ the full map is your paid/private tier.
 - **Polish (optional):** `bash scripts/repo_setup.sh` sets your fork's
   description + topics via the `gh` CLI.
 
+### Enable subscriptions (~10 min, free)
+
+The repo emails *you* via Resend; subscribers are handled by
+[Buttondown](https://buttondown.com) (free ≤ 100 subscribers) — capture **and**
+delivery, no backend:
+
+1. Create a Buttondown account, note your username, grab an API key
+   (Settings → API).
+2. Set Actions **variables**:
+   `SUBSCRIBE_URL=https://buttondown.com/YOURNAME` and
+   `SUBSCRIBE_FORM_ACTION=https://buttondown.email/api/emails/embed-subscribe/YOURNAME`
+   → the archive landing page renders a working email-capture form.
+3. Set the **secret** `BUTTONDOWN_API_KEY` → every run now also sends the
+   **public** version of the issue (private sections stripped, fail-closed) to
+   all subscribers. `BUTTONDOWN_MODE=teaser` (default) sends The Pulse +
+   Opportunity with a link to the full issue; `full` sends the whole public
+   issue.
+4. Set `UNSUBSCRIBE_URL={{ unsubscribe_url }}` (Buttondown's merge tag) so your
+   own Resend copy carries an unsubscribe line too.
+
+Prefer no newsletter service? `docs/feed.xml` is an Atom feed of the archive —
+readers can follow via RSS with zero setup.
+
 ## Run locally
 
 ```bash

@@ -85,6 +85,10 @@ jobs:
           SHOW_MODEL_ATTRIBUTION: ${{ vars.SHOW_MODEL_ATTRIBUTION || 'true' }}
           # Audio digest (free gTTS).
           ENABLE_AUDIO: ${{ vars.ENABLE_AUDIO || 'false' }}
+          # Subscriber delivery: sends the public issue to your Buttondown
+          # list (captured by the landing-page form). teaser | full.
+          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+          BUTTONDOWN_MODE: ${{ vars.BUTTONDOWN_MODE || 'teaser' }}
           # Optional multi-channel delivery.
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
