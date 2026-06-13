@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>dAIly — Daily AI Digest</title>
+<style>
+:root {
+  color-scheme: light dark;
+  supported-color-schemes: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  /* Literal colors only — Gmail/Outlook strip CSS custom properties but keep
+     the media query, which used to leave dark-mode readers unstyled. */
+  body, .aigenos-bg { background: #0a0a14 !important; }
+  .aigenos-card { background: #14141f !important; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35) !important; }
+  .aigenos-text { color: #ececf5 !important; }
+  .aigenos-muted { color: #8e8ea8 !important; }
+  h2.aigenos-h2 { color: #8b8cff !important; border-color: #2a2a3d !important; }
+  h3.aigenos-h3 { color: #ececf5 !important; }
+  p.aigenos-p, li.aigenos-li { color: #c8c8d8 !important; }
+  a.aigenos-a { color: #8b8cff !important; }
+  strong.aigenos-strong { color: #ececf5 !important; }
+  blockquote.aigenos-bq {
+    background: #1a1a26 !important;
+    color: #c8c8d8 !important;
+    border-color: #8b8cff !important;
+  }
+  .aigenos-chip {
+    background: rgba(139, 140, 255, 0.14) !important;
+    color: #8b8cff !important;
+  }
+  .aigenos-footer { color: #8e8ea8 !important; }
+  .aigenos-footer a { color: #8b8cff !important; }
+  .aigenos-hero-sub { color: rgba(255,255,255,0.85) !important; }
+  .aigenos-src-row { background: #1a1a26 !important; border-color: #2a2a3d !important; }
+  a.aigenos-src-title { color: #ececf5 !important; }
+  .aigenos-src-meta { color: #8e8ea8 !important; }
+}
+@media (max-width: 600px) {
+  .aigenos-shell { padding: 16px 10px !important; }
+  .aigenos-card { padding: 18px !important; }
+  .aigenos-hero { padding: 22px 22px 18px !important; }
+}
+</style>
+</head>
+<body class="aigenos-bg" style="margin:0;padding:0;background:#f3f4f8;color-scheme:light dark;">
+<div class="aigenos-shell" style="max-width:720px;margin:0 auto;padding:28px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Variable','Segoe UI',Roboto,'SF Pro Display','Helvetica Neue',Arial,sans-serif;font-feature-settings:'cv11','ss03';-webkit-font-smoothing:antialiased;">
+
+  <!-- Hero / masthead -->
+  <div class="aigenos-hero" style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#c026d3 100%);border-radius:20px;padding:26px 28px;color:#ffffff;box-shadow:0 8px 32px rgba(79,70,229,0.25);">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="width:54px;vertical-align:middle;">
+        <div style="width:52px;height:52px;border-radius:15px;background:rgba(255,255,255,0.16);text-align:center;font-size:27px;line-height:52px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18);">🤖</div>
+      </td>
+      <td style="vertical-align:middle;padding-left:14px;">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.8;font-weight:600;">by aigenos · daily ai intelligence</div>
+        <div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.05;margin-top:3px;">d<span style="color:#fcd34d;">AI</span>ly</div>
+      </td>
+      <td style="vertical-align:middle;text-align:right;white-space:nowrap;">
+        <span style="display:inline-block;background:rgba(255,255,255,0.18);padding:6px 13px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.3px;">Jun 13</span>
+      </td>
+    </tr></table>
+    <div class="aigenos-hero-sub" style="font-size:13.5px;opacity:.92;font-weight:500;line-height:1.5;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,0.18);">
+      📅 Saturday, June 13, 2026 &nbsp;·&nbsp; Cutting-edge AI in ~90 seconds — the news, the must-read research, and what to build next.
+    </div>
+  </div>
+
+  <!-- Body card -->
+  <div class="aigenos-card" style="background:#ffffff;border-radius:20px;padding:8px 30px 26px;margin-top:18px;box-shadow:0 1px 2px rgba(20,20,42,0.04),0 8px 24px rgba(20,20,42,0.06);">
+    <!--SECTION:pulse-->
+<h2 class="aigenos-h2" style="font-size:21px;margin:32px 0 10px;padding-bottom:10px;border-bottom:1px solid #e8e6f5;color:#6366f1;font-weight:700;letter-spacing:-0.01em;line-height:1.3;">⚡ The Pulse — If You Only Read One Thing<span class="aigenos-chip" style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;padding:4px 10px;margin-left:10px;border-radius:999px;background:rgba(99,102,241,0.10);color:#6366f1;vertical-align:middle;line-height:1;">90 sec read</span></h2>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">🎯 Today's Game-Changer</h3>
+<p class="aigenos-p" style="margin:10px 0;font-size:15px;color:#3a3a55;line-height:1.65;">NVIDIA has released a <img src="https://www.google.com/s2/favicons?domain=developer.nvidia.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://developer.nvidia.com/blog/nvidia-achieves-leading-agentic-coding-performance-on-first-agentic-ai-benchmark/">first-of-its-kind agentic coding benchmark</a>, establishing a standardized methodology for measuring agentic inference complexity and performance. By moving beyond static code completion metrics to evaluate multi-step, tool-using agentic workflows, this benchmark forces the industry to shift focus from raw model capability to reliable, long-horizon task execution.</p>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">📍 In a Nutshell</h3>
+<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">GLM 5.2 deployed</strong> — The new model supports a 1M context window and introduces "max" and "high" thinking modes for coding tasks. <img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://www.reddit.com/r/LocalLLaMA/comments/1u4nmpl/glm_52_is_deployed_in_glm_coding_plan_api_and_mit/">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">ZONOS2 released</strong> — A new 8B parameter real-time TTS model with high-fidelity voice cloning and 900M active parameters. <img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://www.reddit.com/r/LocalLLaMA/comments/1u4lk5c/zonos2_realtime_tts_with_8b_params_900m_active/">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Paca launched</strong> — A Go-based, open-source Jira alternative designed for human-AI collaboration on sprint planning. <a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Paca-AI/paca">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">TensorZero archived</strong> — The OSS tool repo was archived immediately following a $7.3M seed round, sparking community debate on project longevity. <a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/tensorzero/tensorzero">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">EurekAgent paper</strong> — Researchers demonstrate that "Agent Environment Engineering" is sufficient to automate complex scientific discovery. <img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13662v1">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Recursive Agent Harnesses</strong> — A new paper explores how spawning subagents at scale is becoming the standard for long-context reasoning. <img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13643v1">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">LOTUSLITE identified</strong> — Microsoft Research's Project Ire reverse-engineered a new malware specimen that bypassed major EDR tools. <img src="https://www.google.com/s2/favicons?domain=microsoft.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://www.microsoft.com/en-us/research/blog/ire-identifies-another-lotuslite-specimen/">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">SkMTEB benchmark</strong> — The first comprehensive text embedding benchmark for Slovak (31 datasets) has been released. <img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13647v1">source</a></li>
+</ul>
+
+<!--SECTION:opp_teaser-->
+<h2 class="aigenos-h2" style="font-size:21px;margin:32px 0 10px;padding-bottom:10px;border-bottom:1px solid #e8e6f5;color:#6366f1;font-weight:700;letter-spacing:-0.01em;line-height:1.3;">🚀 Opportunity of the Day<span class="aigenos-chip" style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;padding:4px 10px;margin-left:10px;border-radius:999px;background:rgba(99,102,241,0.10);color:#6366f1;vertical-align:middle;line-height:1;">2 min read</span></h2>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">Agentic Workflow Orchestrator</h3>
+<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">The gap:</strong> Current project management tools (Jira, Linear) are built for human-to-human handoffs; they lack native primitives for agentic state, tool-use history, and recursive sub-tasking identified in the <img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13643v1">Recursive Agent Harnesses</a> paper.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Why now:</strong> The emergence of standardized agentic benchmarks (e.g., <img src="https://www.google.com/s2/favicons?domain=developer.nvidia.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://developer.nvidia.com/blog/nvidia-achieves-leading-agentic-coding-performance-on-first-agentic-ai-benchmark/">NVIDIA's new coding benchmark</a>) and lightweight OSS alternatives like <a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Paca-AI/paca">Paca</a> signals a market shift toward "AI-first" project management.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Build as:</strong> A developer-focused orchestration layer that sits between your LLM agents and your issue tracker, providing a "Unified Agentic Interface" for task delegation and verification.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Wedge &amp; moat:</strong> Start by automating the "Jira-to-Code" loop for engineering teams; the moat compounds as you capture the proprietary data of how agents successfully complete tasks, creating a "workflow-as-a-service" dataset.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Already heating up:</strong> <a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Paca-AI/paca">Paca</a> (Show HN) is gaining traction as a lightweight Jira alternative; <img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13643v1">Recursive Agent Harnesses</a> provides the theoretical framework for the necessary multi-agent architecture.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">First step this week:</strong> Build a prototype that uses the <a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Paca-AI/paca">Paca</a> API to automatically ingest a GitHub issue, break it into sub-tasks using a recursive agent, and update the ticket status based on agentic execution success.</li>
+</ul>
+
+<!--SECTION:stack-->
+<h2 class="aigenos-h2" style="font-size:21px;margin:32px 0 10px;padding-bottom:10px;border-bottom:1px solid #e8e6f5;color:#6366f1;font-weight:700;letter-spacing:-0.01em;line-height:1.3;">📊 Stack Signals — Pick Your Tools<span class="aigenos-chip" style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;padding:4px 10px;margin-left:10px;border-radius:999px;background:rgba(99,102,241,0.10);color:#6366f1;vertical-align:middle;line-height:1;">3 min read</span></h2>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">Benchmarks &amp; Evals</h3>
+<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">NVIDIA Agentic Coding Benchmark</strong> — New standard for measuring agentic inference; focuses on multi-step tool use rather than static code generation. <img src="https://www.google.com/s2/favicons?domain=developer.nvidia.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://developer.nvidia.com/blog/nvidia-achieves-leading-agentic-coding-performance-on-first-agentic-ai-benchmark/">source</a></li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">SkMTEB</strong> — New benchmark for Slovak language embeddings, providing 4x the depth of previous multilingual benchmarks. <img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13647v1">source</a></li>
+</ul>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">Repo &amp; Model Velocity</h3>
+<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Zyphra/ZONOS2">ZONOS2</a></strong> — High-fidelity, real-time TTS; gaining rapid attention for its 8B parameter efficiency.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><img src="https://www.google.com/s2/favicons?domain=huggingface.co&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://huggingface.co/unsloth/Kimi-K2.7-Code-GGUF">Kimi-K2.7-Code-GGUF</a></strong> — Trending GGUF quantization for local coding assistance; popular for low-VRAM inference.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Paca-AI/paca">Paca</a></strong> — Lightweight Go-based Jira alternative; seeing high interest for its "human-AI equal teammate" design.</li>
+</ul>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">Funding &amp; Launches — with Thesis</h3>
+<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/tensorzero/tensorzero">TensorZero</a></strong> — $7.3M Seed. <strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Thesis:</strong> Betting on the need for a dedicated "LLM-as-a-database" layer to manage model versioning and feedback loops.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://github.com/Paca-AI/paca">Paca</a></strong> — Show HN. <strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Thesis:</strong> Betting that the next generation of project management will be agent-native, not just human-centric.</li>
+</ul>
+
+<!--SECTION:deep-->
+<h2 class="aigenos-h2" style="font-size:21px;margin:32px 0 10px;padding-bottom:10px;border-bottom:1px solid #e8e6f5;color:#6366f1;font-weight:700;letter-spacing:-0.01em;line-height:1.3;">🔬 Deep Reads — For When You Have Time (skip if rushed)</h2>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">📖 The One Deep Read</h3>
+<p class="aigenos-p" style="margin:10px 0;font-size:15px;color:#3a3a55;line-height:1.65;"><img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13643v1">Recursive Agent Harnesses</a> by Elias Lumer and Sahil Sen. This paper is essential reading because it formalizes the transition from monolithic LLM calls to recursive, sub-agent-spawning architectures. It provides the blueprint for how production-grade coding agents will handle complex, long-horizon tasks in the coming year.</p>
+<p class="aigenos-p" style="margin:10px 0;font-size:15px;color:#3a3a55;line-height:1.65;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;">Read it for:</strong> The architectural patterns for managing sub-agent state and recursion depth.</p>
+
+<h3 class="aigenos-h3" style="font-size:16px;margin:22px 0 6px;color:#14142a;font-weight:650;letter-spacing:-0.005em;line-height:1.35;">📑 Supporting Research</h3>
+<ul class="aigenos-ul" style="margin:10px 0 12px 0;padding-left:22px;">
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13662v1">EurekAgent</a></strong> — Demonstrates that environment engineering is the primary bottleneck for autonomous scientific discovery.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13621v1">Beyond Runtime Enforcement</a></strong> — Argues for "Shield Synthesis" as a method for defensibility analysis in adversarial networks.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><img src="https://www.google.com/s2/favicons?domain=arxiv.org&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://arxiv.org/abs/2606.13639v1">Tuning Agent-Based Predator-Prey Models</a></strong> — Explores parameter optimization in large-scale agent-based simulations.</li>
+<li class="aigenos-li" style="margin:7px 0;font-size:15px;color:#3a3a55;line-height:1.6;"><strong class="aigenos-strong" style="color:#14142a;font-weight:650;"><img src="https://www.google.com/s2/favicons?domain=microsoft.com&sz=64" width="14" height="14" alt="" style="vertical-align:middle;margin:0 5px 2px 0;border-radius:3px;border:0;display:inline-block;"><a class="aigenos-a" style="color:#6366f1;text-decoration:none;font-weight:600;border-bottom:1px solid rgba(99,102,241,0.25);" href="https://www.microsoft.com/en-us/research/blog/ire-identifies-another-lotuslite-specimen/">Project Ire</a></strong> — A deep dive into reverse-engineering LOTUSLITE malware using AI-assisted analysis.</li>
+</ul>
+
+<p class="aigenos-p" style="margin:10px 0;font-size:15px;color:#3a3a55;line-height:1.65;"><em class="aigenos-em" style="font-style:italic;color:inherit;">Stay focused on the agentic loop; the infrastructure layer is currently consolidating around recursive execution and standardized evaluation.</em></p>
+    
+  </div>
+
+  <!-- Footer -->
+  <div class="aigenos-footer" style="text-align:center;color:#6b6b85;font-size:12px;padding:22px 8px 8px;line-height:1.6;">
+    Curated by <strong style="color:#6366f1;font-weight:700;">aigenos</strong> from frontier labs, AI-engineer newsletters, infra vendors, community feeds &amp; arXiv<br><span style="opacity:.78;">powered by gemini (gemini-3.1-flash-lite).</span>
+  </div>
+
+</div>
+</body>
+</html>
